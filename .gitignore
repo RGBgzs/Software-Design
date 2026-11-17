@@ -1,0 +1,52 @@
+# ── 依赖与构建产物 ──────────────────────────
+node_modules/
+target/
+dist/
+build/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.zip
+*.jar
+*.class
+
+# ── 运行日志 ────────────────────────────────
+logs/
+*.log
+
+# ── 运行时数据（含个人隐私，不入库）──────────
+human-security-backend/uploads/
+services/face-microservice/face_db/
+services/face-microservice/captures/
+*.pkl
+
+# ── 模型权重（体积大，见 README 获取方式）────
+services/face-microservice/models/
+
+# ── 历史备份快照 ────────────────────────────
+_backup_*/
+_compile_error_backup/
+backups_face_real_microservice/
+index_before_*.html
+index_step*.html
+index_backup_*.html
+dream25_backup_before_demo_data.sql
+
+# ── 环境变量与凭据 ──────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.properties
+
+# ── IDE / 操作系统 ──────────────────────────
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini

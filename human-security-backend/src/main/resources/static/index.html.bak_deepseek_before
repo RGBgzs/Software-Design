@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧安防 AI 智能体控制台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow-x:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;background:linear-gradient(160deg,#edf2f9 0%,#dce8f7 40%,#e4edf8 70%,#eef3fa 100%);min-height:100vh;padding:18px;color:#1e293b}
+.container{max-width:1440px;width:calc(100% - 16px);margin:0 auto}
+
+/* ===== HEADER ===== */
+.header{
+  background:linear-gradient(135deg,#0f2b5c 0%,#143778 30%,#1a45a0 60%,#1d4ec4 100%);
+  color:#fff;border-radius:16px 16px 0 0;padding:22px 32px 18px;
+  text-align:center;position:relative;overflow:hidden
+}
+/* Tech grid overlay - pure CSS */
+.header::before{
+  content:'';position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:40px 40px;background-position:center center;
+  opacity:.6;pointer-events:none
+}
+.header::after{
+  content:'';position:absolute;top:-60px;right:-60px;
+  width:200px;height:200px;
+  background:radial-gradient(circle,rgba(255,255,255,.06) 0%,transparent 70%);
+  border-radius:50%
+}
+.header h1{
+  font-size:23px;font-weight:800;letter-spacing:2.5px;
+  margin-bottom:5px;position:relative;z-index:1;
+  text-shadow:0 1px 3px rgba(0,0,0,.2)
+}
+.header .sub{
+  font-size:12px;opacity:.82;letter-spacing:1.5px;
+  position:relative;z-index:1
+}
+
+/* ===== TABS ===== */
+.tabs{
+  display:flex;flex-wrap:wrap;gap:5px;
+  padding:10px 20px;
+  background:linear-gradient(180deg,#132f6e,#0f2755);
+  justify-content:center;position:relative
+}
+.tabs button{
+  padding:7px 18px;border:1px solid rgba(255,255,255,.28);
+  border-radius:20px;background:transparent;
+  color:rgba(255,255,255,.82);font-size:12px;font-weight:500;
+  cursor:pointer;transition:all .22s ease;white-space:nowrap;
+  outline:none;line-height:1.4
+}
+.tabs button:hover{
+  background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.45);color:#fff
+}
+.tabs button.active{
+  background:#fff;color:#143778;border-color:#fff;
+  font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.2)
+}
+
+/* ===== MAIN ===== */
+.main{
+  background:#fff;border-radius:0 0 16px 16px;
+  box-shadow:0 4px 30px rgba(0,50,110,.07);min-height:80vh
+}
+.section{display:none;padding:24px 28px;width:100%;min-width:0;overflow:hidden}
+.section.active{display:block}
+
+/* ===== STATS CARDS ===== */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.stat-card{
+  background:#fff;border-radius:14px;padding:18px 12px 16px;
+  text-align:center;border:1px solid #e8edf4;
+  box-shadow:0 1px 3px rgba(0,0,0,.02);
+  transition:transform .2s,box-shadow .2s, border-color .2s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:110px
+}
+.stat-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 6px 20px rgba(0,50,120,.08);
+  border-color:#d0d7e4
+}
+.stat-card .ic{font-size:24px;margin-bottom:6px;display:block;line-height:1}
+.stat-card .n{font-size:34px;font-weight:800;color:#2563eb;line-height:1.1}
+.stat-card .l{font-size:11px;color:#64748b;margin-top:5px;font-weight:600;letter-spacing:.3px}
+.stat-card.warn{background:#fffbfb;border-color:#fecaca}
+.stat-card.warn .n{color:#dc2626}
+.stat-card.msg-unread{background:#fffbfb;border-color:#fecaca}
+.stat-card.msg-unread .n{color:#dc2626}
+
+/* ===== ALERT BOXES ===== */
+.alert-box{
+  border-radius:14px;padding:16px 22px;margin-bottom:16px;
+  display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;
+  border:1px solid #dcfce7;border-left:5px solid #16a34a;
+  background:linear-gradient(135deg,#f0fdf4,#fafdf7)
+}
+.alert-box.red{
+  border-color:#fecaca;border-left-color:#dc2626;
+  background:linear-gradient(135deg,#fef5f5,#fefaf9)
+}
+.alert-box.blue{
+  border-color:#bfdbfe;border-left-color:#2563eb;
+  background:linear-gradient(135deg,#eff6ff,#f8fafe)
+}
+.alert-box .ai{font-size:26px;flex-shrink:0;line-height:1.2}
+.alert-box .at{flex:1;font-size:13px;color:#334155;line-height:1.7;min-width:180px}
+.alert-box.red .at{color:#991b1b}
+
+/* ===== ENTRY CARDS ===== */
+.entry-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.entry-card{
+  background:#fff;border-radius:16px;padding:24px 20px;
+  border:1px solid #e8edf4;box-shadow:0 2px 8px rgba(0,50,110,.03);
+  transition:all .25s ease;cursor:pointer;
+  position:relative;overflow:hidden
+}
+.entry-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#2563eb,#60a5fa,#2563eb);
+  opacity:0;transition:opacity .25s
+}
+.entry-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 10px 32px rgba(0,50,120,.1);
+  border-color:#bdd3f0
+}
+.entry-card:hover::after{opacity:1}
+.entry-card .ci{font-size:38px;margin-bottom:10px;display:block;line-height:1}
+.entry-card h3{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:5px}
+.entry-card p{font-size:12px;color:#64748b;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ===== CHAT ===== */
+.chat-box{
+  height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px;
+  background:linear-gradient(180deg,#fafbfd,#f5f7fb);
+  border-radius:14px;padding:16px;margin-bottom:12px;border:1px solid #e8edf4
+}
+.chat-box::-webkit-scrollbar{width:5px}
+.chat-box::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.tbl-wrap::-webkit-scrollbar{height:5px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.chat-box::-webkit-scrollbar-track{background:transparent}
+.msg{display:flex;flex-direction:column;max-width:85%;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.msg.user{align-self:flex-end;align-items:flex-end}
+.msg.user .b{
+  background:linear-gradient(135deg,#2563eb,#3b82f6);
+  color:#fff;padding:11px 17px;border-radius:20px 20px 4px 20px;
+  font-size:14px;line-height:1.6;word-break:break-word;
+  box-shadow:0 3px 10px rgba(37,99,235,.2)
+}
+.msg.bot{align-self:flex-start;align-items:flex-start}
+.msg.bot .b{
+  background:#fff;color:#334155;padding:11px 17px;
+  border-radius:20px 20px 20px 4px;font-size:14px;line-height:1.7;
+  word-break:break-word;white-space:pre-line;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);border:1px solid #eef2f7
+}
+.msg.bot .m{font-size:10px;color:#94a3b8;margin-top:4px;margin-left:8px}
+.msg .lbl{font-size:10px;color:#94a3b8;margin-bottom:3px;margin-left:8px;font-weight:500}
+.msg.user .lbl{margin-right:8px;margin-left:0;text-align:right}
+.typing{display:flex;gap:4px;padding:12px 17px}
+.typing span{width:7px;height:7px;background:#94a3b8;border-radius:50%;animation:bounce 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.quick-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.quick-btn{
+  background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;
+  padding:6px 14px;border-radius:18px;font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .2s;white-space:nowrap
+}
+.quick-btn:hover{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 3px 10px rgba(37,99,235,.25)}
+.chat-input-row{display:flex;gap:8px;align-items:center}
+.chat-input-row input{
+  flex:1;padding:11px 15px;border:1.5px solid #e2e8f0;
+  border-radius:22px;font-size:13px;outline:0;min-width:0;
+  transition:all .2s;background:#f8fafc
+}
+.chat-input-row input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1);background:#fff}
+.voice-row{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;font-size:11px;color:#94a3b8}
+.voice-row .vs{flex:1;min-width:100px;color:#64748b}
+.tgl{display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none;white-space:nowrap;font-size:11px;color:#64748b}
+.tgl input{cursor:pointer;margin:0;accent-color:#2563eb}
+
+/* ===== TOOLBAR ===== */
+.toolbar{display:flex;justify-content:space-between;align-items:center;padding:0 0 14px;flex-wrap:wrap;gap:10px;max-width:100%}
+.fg{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fg select,.fg input{
+  padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:16px;
+  font-size:12px;outline:0;background:#fff;transition:border-color .2s
+}
+.fg select:focus,.fg input:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.08)}
+.fg input{width:200px}
+
+/* ===== TABLES ===== */
+.tbl-wrap{overflow-x:auto;border-radius:14px;border:1px solid #e5e7eb;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:700px;table-layout:auto}
+thead th{
+  background:#f6f8fc;color:#475569;font-weight:700;
+  padding:10px 10px;text-align:left;
+  border-bottom:2px solid #e2e8f0;white-space:nowrap;
+  font-size:11px;letter-spacing:.4px
+}
+tbody td{
+  padding:9px 10px;border-bottom:1px solid #f1f5f9;
+  vertical-align:middle;line-height:1.5;color:#334155
+}
+tbody tr{transition:background .1s}
+tbody tr:nth-child(even){background:#fafbfd}
+tbody tr:hover{background:#f0f4fa}
+tbody tr.high-row{background:#fef5f5 !important;border-left:3px solid #dc2626}
+.ellipsis{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.empty td{text-align:center;color:#94a3b8;padding:40px 20px;font-size:13px}
+
+/* ===== BADGES ===== */
+.badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;letter-spacing:.3px;line-height:1.5;vertical-align:middle}
+.bg-green{background:#dcfce7;color:#166534}
+.bg-red{background:#fecaca;color:#991b1b}
+.bg-orange{background:#ffedd5;color:#9a3412}
+.bg-blue{background:#dbeafe;color:#1e40af}
+.bg-gray{background:#f1f5f9;color:#475569}
+.bg-purple{background:#ede9fe;color:#5b21b6}
+
+/* ===== BUTTONS ===== */
+.btn{
+  padding:8px 18px;border:none;border-radius:20px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .2s ease;white-space:nowrap;
+  text-decoration:none;display:inline-block;line-height:1.35
+}
+.btn:active{transform:scale(.96)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none !important}
+.btn-p{background:#2563eb;color:#fff;box-shadow:0 2px 6px rgba(37,99,235,.25)}
+.btn-p:hover:not(:disabled){background:#1d4ed8;box-shadow:0 4px 14px rgba(37,99,235,.35)}
+.btn-o{background:#fff;color:#2563eb;border:1.5px solid #2563eb}
+.btn-o:hover:not(:disabled){background:#eff6ff;border-color:#1d4ed8}
+.btn-s{background:#16a34a;color:#fff;box-shadow:0 2px 6px rgba(22,163,74,.2)}
+.btn-s:hover:not(:disabled){background:#15803d;box-shadow:0 4px 12px rgba(22,163,74,.3)}
+.btn-d{background:#dc2626;color:#fff;box-shadow:0 2px 6px rgba(220,38,38,.2)}
+.btn-d:hover:not(:disabled){background:#b91c1c;box-shadow:0 4px 12px rgba(220,38,38,.3)}
+.btn-w{background:#f97316;color:#fff;box-shadow:0 2px 6px rgba(249,115,22,.2)}
+.btn-w:hover:not(:disabled){background:#ea580c;box-shadow:0 4px 12px rgba(249,115,22,.3)}
+.btn-xs{padding:5px 12px;font-size:11px;border-radius:14px}
+.ico-btn{
+  width:36px;height:36px;border-radius:50%;border:1.5px solid #e2e8f0;
+  background:#fff;color:#2563eb;font-size:16px;cursor:pointer;
+  transition:all .2s;display:inline-flex;align-items:center;
+  justify-content:center;flex-shrink:0
+}
+.ico-btn:hover:not(:disabled){background:#eff6ff;border-color:#2563eb}
+.ico-btn:active{transform:scale(.93)}
+.ico-btn:disabled{background:#f8fafc;color:#cbd5e1;border-color:#e2e8f0;cursor:not-allowed}
+.ico-btn.lst{background:#dc2626;color:#fff;border-color:#dc2626;animation:pulse-bg 1.5s infinite}
+.send-btn{
+  background:#2563eb;color:#fff;border:none;width:36px;height:36px;
+  border-radius:50%;font-size:16px;cursor:pointer;transition:all .2s;
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;box-shadow:0 2px 6px rgba(37,99,235,.3)
+}
+.send-btn:hover:not(:disabled){background:#1d4ed8;box-shadow:0 4px 12px rgba(37,99,235,.4)}
+.send-btn:disabled{background:#93c5fd;cursor:not-allowed;box-shadow:none}
+@keyframes pulse-bg{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
+.pagi{text-align:center;padding:14px;font-size:12px;color:#64748b;font-weight:500}
+
+/* ===== MODAL ===== */
+.modal-over{
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(15,23,42,.45);z-index:100;
+  justify-content:center;align-items:flex-start;
+  padding-top:44px;backdrop-filter:blur(2px)
+}
+.modal-over.active{display:flex}
+.modal{
+  background:#fff;border-radius:18px;width:92%;max-width:620px;
+  max-height:84vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.18);
+  padding:24px 28px;
+  animation:modalIn .2s ease
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(-12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal h2{
+  font-size:17px;font-weight:700;color:#1e293b;
+  margin-bottom:18px;padding-bottom:14px;
+  border-bottom:2px solid #f1f5f9
+}
+.modal::-webkit-scrollbar{width:4px}
+.modal::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.fg2{margin-bottom:15px}
+.fg2 label{display:block;font-size:12px;color:#475569;font-weight:600;margin-bottom:5px}
+.fg2 input,.fg2 textarea,.fg2 select{
+  width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;
+  border-radius:10px;font-size:13px;font-family:inherit;
+  outline:0;transition:all .2s;background:#f8fafc
+}
+.fg2 textarea{resize:vertical;min-height:85px}
+.fg2 input:focus,.fg2 textarea:focus,.fg2 select:focus{
+  border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08);background:#fff
+}
+.detail-row{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px}
+.di{margin-bottom:14px}
+.di .dl{
+  font-size:11px;color:#94a3b8;margin-bottom:3px;
+  font-weight:600;letter-spacing:.4px
+}
+.di .dv{font-size:13px;color:#1e293b;word-break:break-word;line-height:1.55}
+.di .dv-blk{
+  background:#f8fafc;padding:14px 16px;border-radius:10px;
+  line-height:1.7;white-space:pre-line;border:1px solid #eef2f7;
+  color:#334155;font-size:13px;max-height:300px;overflow-y:auto
+}
+
+/* ===== TOAST ===== */
+.toast{
+  position:fixed;bottom:36px;left:50%;transform:translateX(-50%);
+  padding:10px 24px;border-radius:24px;font-size:13px;font-weight:600;
+  z-index:200;opacity:0;transition:opacity .3s ease;
+  pointer-events:none;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.1)
+}
+.toast.show{opacity:1}
+.toast-ok{background:#dcfce7;color:#166534}
+.toast-err{background:#fecaca;color:#991b1b}
+.toast-info{background:#dbeafe;color:#1e40af}
+
+/* ===== MESSAGE CENTER ===== */
+.msg-tab-btn{
+  padding:8px 22px;border-radius:20px;font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .2s;border:1.5px solid #e2e8f0;
+  background:#fff;color:#64748b
+}
+.msg-tab-btn.active-tab{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25)}
+.msg-tab-btn:hover:not(.active-tab){background:#f8fafc;border-color:#cbd5e1;color:#475569}
+.msg-user-bar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 18px;background:#f8fafc;border-radius:14px;
+  margin-bottom:16px;border:1px solid #e8edf4
+}
+.msg-user-bar label{font-size:12px;font-weight:700;color:#475569;white-space:nowrap}
+.msg-user-bar select{
+  padding:7px 14px;border:1.5px solid #e2e8f0;border-radius:18px;
+  font-size:12px;outline:none;background:#fff;min-width:140px;
+  transition:border-color .2s
+}
+.msg-user-bar select:focus{border-color:#2563eb}
+.msg-unread-count{
+  font-size:12px;font-weight:700;color:#dc2626;
+  background:#fef2f2;padding:3px 12px;border-radius:12px;
+  border:1px solid #fecaca
+}
+
+
+/* ===== MESSAGE CENTER LAYOUT ===== */
+.message-layout{display:grid;grid-template-columns:380px minmax(0,1fr);gap:20px;align-items:start}
+.msg-left-panel{display:flex;flex-direction:column;gap:14px}
+.msg-right-panel{min-width:0;overflow:hidden}
+.msg-right-panel .tbl-wrap{overflow-x:auto;max-width:100%}
+@media(max-width:1000px){
+  .message-layout{grid-template-columns:1fr}
+  .msg-left-panel{order:1}
+  .msg-right-panel{order:2}
+}
+
+/* ===== HELP LAYOUT FIX ===== */
+
+
+/* ===== HISTORY TABLE FIX ===== */
+.history-table-wrap{overflow-x:auto;max-width:100%}
+.history-table-wrap table{min-width:780px}
+
+
+/* ===== HELP SECTION ===== */
+.help-contact-card{
+  background:#fff;border-radius:14px;padding:16px;
+  border:1px solid #e8edf4;margin-bottom:14px;
+  transition:box-shadow .2s
+}
+.help-contact-card:hover{box-shadow:0 3px 14px rgba(0,0,0,.06)}
+.help-preview-box{background:#f8fafc;border-radius:14px;padding:18px;border:1px solid #e8edf4;min-height:240px}
+.help-preview-box textarea{
+  font-family:"SF Mono","Consolas","Menlo",monospace;
+  font-size:12px;background:#fff;line-height:1.7;
+  color:#334155;border-color:#e2e8f0
+}
+
+/* ===== SEND FORM ===== */
+.send-form-card{
+  background:#f8fafc;border-radius:14px;padding:22px;
+  border:1px solid #e8edf4;max-width:520px
+}
+.send-form-card .fg2:last-child{margin-bottom:0}
+.send-form-card .btn-p{margin-top:4px}
+
+/* ===== PAGE HEADER ===== */
+.page-title-row{
+  display:flex;align-items:center;gap:10px;margin-bottom:16px;
+  padding-bottom:12px;border-bottom:2px solid #f1f5f9
+}
+.page-title-row .pt-icon{font-size:20px;flex-shrink:0}
+.page-title-row .pt-text{font-size:16px;font-weight:700;color:#1e293b}
+
+
+/* ===== HELP 3-COLUMN LAYOUT ===== */
+.help-layout{display:grid;grid-template-columns:320px 360px minmax(420px,1fr);gap:20px;align-items:start;width:100%}
+.help-contacts-panel,.help-form-panel,.help-preview-panel{min-width:0;width:100%}
+#contactList{line-height:1.6}
+#contactList>div{padding:10px 0;border-bottom:1px solid #f1f5f9}
+#contactList>div:last-child{border-bottom:none}
+@media(max-width:1280px){
+  .help-layout{grid-template-columns:300px 320px minmax(340px,1fr);gap:16px}
+}
+@media(max-width:1080px){
+  .help-layout{grid-template-columns:280px minmax(300px,1fr)}
+  .help-preview-panel{grid-column:1/-1}
+}
+
+/* Mobile 900px breakpoint */
+
+@media(max-width:1200px){.home-entry-grid{grid-template-columns:repeat(3, minmax(160px, 1fr))}}
+@media(max-width:900px){
+  .app-shell{display:block;width:100%}
+  .side-nav{border-radius:0}
+  .side-nav .nav-title{display:none}
+  .side-nav .tabs{flex-direction:row;flex-wrap:wrap;gap:4px;padding:8px 10px;justify-content:center}
+  .side-nav .tabs button{display:inline-block;width:auto;text-align:center;padding:6px 12px;font-size:11px;border-radius:18px}
+  .side-nav .tabs button.active{background:#fff;color:#143778;border-color:#fff}
+  .main-panel{border-radius:0;overflow-x:hidden}
+  .main-panel .main{border-radius:0 0 12px 12px}
+  .section{padding:18px 14px}
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .dashboard-grid{grid-template-columns:1fr}
+  .two-col,.two-col-70-30,.two-col-35-65,.two-col-40-60{grid-template-columns:1fr}
+  .help-layout{grid-template-columns:280px minmax(300px,1fr)}
+  .entry-grid{grid-template-columns:1fr}
+  .toolbar{flex-direction:column;align-items:stretch}
+  .toolbar .fg{flex-direction:column;align-items:stretch}
+  .toolbar .fg input,.toolbar .fg select{width:100%}
+  .section-header{flex-direction:column}
+  .section-actions{width:100%;justify-content:flex-start}
+  table{min-width:650px}
+  .modal{max-width:94vw}
+}
+
+
+@media(max-width:768px){
+  .help-layout{grid-template-columns:1fr}
+}
+
+/* ===== KNOWLEDGE BASE TOOLBAR ===== */
+.kb-mini-stat{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:14px;background:#f0fdf4;border:1px solid #dcfce7;font-size:13px;color:#166534;font-weight:600;white-space:nowrap}
+.kb-mini-stat strong{font-size:20px;font-weight:800}
+#kbTbody .ans-cell{max-width:520px}
+
+
+/* ===== RESPONSIVE ===== */
+
+/* ===== APP SHELL LAYOUT ===== */
+.app-shell{display:grid;grid-template-columns:220px minmax(0,1fr);gap:0;max-width:1440px;width:100%;margin:0 auto;min-height:calc(100vh - 140px);overflow:hidden}
+.side-nav{background:linear-gradient(180deg,#132f6e,#0f2755);padding:0;overflow-y:auto;border-radius:0 0 0 16px}
+.side-nav .nav-title{padding:16px 18px 10px;color:rgba(255,255,255,.55);font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+.side-nav .tabs{display:flex;flex-direction:column;gap:3px;padding:4px 10px 16px;background:transparent;justify-content:flex-start}
+.side-nav .tabs button{display:block;width:100%;text-align:left;padding:10px 16px;border:1px solid transparent;border-radius:12px;background:transparent;color:rgba(255,255,255,.78);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap;outline:none;line-height:1.3}
+.side-nav .tabs button:hover{background:rgba(255,255,255,.08);color:#fff}
+.side-nav .tabs button.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.2);font-weight:700;box-shadow:none}
+.main-panel{min-width:0;width:100%;overflow:hidden;background:#fff;border-radius:0 0 16px 0}
+.main-panel .main{box-shadow:none;border-radius:0}
+
+/* Section headers */
+.section-header{display:flex;justify-content:space-between;align-items:flex-start;padding:0 0 14px;margin-bottom:18px;border-bottom:2px solid #f1f5f9;flex-wrap:wrap;gap:12px}
+.section-header .sh-left{flex:1;min-width:200px}
+.section-title{font-size:17px;font-weight:700;color:#1e293b;margin-bottom:3px}
+.section-desc{font-size:12px;color:#94a3b8;line-height:1.4}
+.section-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0}
+
+/* Two column layout */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.two-col-70-30{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+.two-col-35-65{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+.two-col-40-60{display:grid;grid-template-columns:380px minmax(0,1fr);gap:20px;align-items:start}
+.panel-card{background:#fff;border-radius:14px;padding:18px;border:1px solid #e8edf4}
+.panel-card h3{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f1f5f9}
+
+/* Home page layout */
+.alert-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.entry-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.home-entry-grid{display:grid;grid-template-columns:repeat(6, minmax(145px, 1fr));gap:14px;margin-bottom:20px}
+
+/* Chat sidebar */
+.chat-sidebar{display:flex;flex-direction:column;gap:14px}
+.chat-sidebar .quick-row{display:flex;flex-direction:column;gap:6px}
+.chat-sidebar .quick-btn{display:block;width:100%;text-align:left;padding:9px 14px}
+
+/* Content grid for card layouts */
+.content-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+
+/* Table panel */
+.table-panel{overflow-x:auto;border-radius:12px;border:1px solid #eef1f6}
+
+/* Form panel */
+.form-panel{background:#f8fafc;border-radius:14px;padding:22px;border:1px solid #e8edf4}
+
+/* Preview panel */
+.preview-panel{background:#fff;border-radius:14px;padding:18px;border:1px solid #e8edf4;min-height:200px}
+
+/* Modal layout classes */
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #f1f5f9}
+.modal-body{max-height:55vh;overflow-y:auto;margin-bottom:16px}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;padding-top:14px;border-top:1px solid #f1f5f9}
+
+/* Info grid for detail modals */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.info-grid .info-item{margin-bottom:6px}
+.info-grid .info-label{font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:2px}
+.info-grid .info-value{font-size:13px;color:#1e293b}
+.info-block{margin-bottom:14px}
+.info-block .info-label{font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:4px}
+.info-block .info-value{background:#f8fafc;padding:12px;border-radius:10px;line-height:1.6;white-space:pre-line;color:#334155;font-size:13px;border:1px solid #f1f5f9}
+
+/* Responsive - sidebar collapses to top tabs */
+@media(max-width:900px){
+  .app-shell{display:block;max-width:100%}
+  .side-nav{border-radius:0;padding:0}
+  .side-nav .nav-title{display:none}
+  .side-nav .tabs{flex-direction:row;flex-wrap:wrap;gap:4px;padding:8px 12px;justify-content:center}
+  .side-nav .tabs button{display:inline-block;width:auto;text-align:center;padding:6px 14px;font-size:11px;border-radius:18px}
+  .side-nav .tabs button.active{background:#fff;color:#143778;border-color:#fff}
+  .main-panel{border-radius:0}
+  .main-panel .main{border-radius:0 0 12px 12px}
+  .two-col,.two-col-70-30,.two-col-35-65,.two-col-40-60{grid-template-columns:1fr}
+  .alert-grid{grid-template-columns:1fr}
+  .entry-grid{grid-template-columns:1fr}
+  .content-grid{grid-template-columns:1fr}
+  .chat-sidebar .quick-row{flex-direction:row;flex-wrap:wrap}
+  .chat-sidebar .quick-btn{display:inline-block;width:auto}
+}
+
+@media(max-width:768px){
+  body{padding:8px}
+  .header{padding:16px 18px 12px;border-radius:12px 12px 0 0}
+  .header h1{font-size:18px;letter-spacing:1px}
+  .header .sub{font-size:10px;letter-spacing:.5px}
+  .tabs{padding:8px 10px;gap:4px}
+  .tabs button{padding:6px 12px;font-size:11px;border-radius:16px}
+  .main{border-radius:0 0 12px 12px}
+  .section{padding:16px 12px}
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-card{padding:14px 10px;min-height:90px}
+  .stat-card .n{font-size:26px}
+  .stat-card .ic{font-size:20px}
+  .entry-grid{grid-template-columns:1fr;gap:10px}
+  .entry-card{padding:18px 16px}
+  .modal{max-width:94vw;padding:18px 16px}
+  .modal h2{font-size:15px}
+  .chat-box{height:38vh}
+  .detail-row{grid-template-columns:1fr}
+  .toolbar{flex-direction:column;align-items:stretch}
+  .fg{flex-direction:column;align-items:stretch}
+  .fg input{width:100%}
+  .msg-user-bar{flex-direction:column;align-items:flex-start;gap:8px}
+  .send-form-card{max-width:100%}
+  table{min-width:700px}
+}
+
+/* ===== KNOWLEDGE BASE TABLE ===== */
+.kb-search-row{display:flex;justify-content:flex-start;align-items:center;margin:16px 0 18px}
+.kb-search-input{width:340px;max-width:100%;padding:9px 14px;border:1.5px solid #e2e8f0;border-radius:18px;font-size:13px;outline:0;transition:border-color .2s;background:#fff}
+.kb-search-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.kb-table{table-layout:fixed;width:100%;min-width:820px}
+.kb-table .kb-col-id{width:54px}
+.kb-table .kb-col-q{width:160px}
+.kb-table .kb-col-a{width:auto}
+.kb-table .kb-col-cat{width:110px}
+.kb-table .kb-col-st{width:90px;text-align:center}
+.kb-table .kb-col-act{width:175px;text-align:center}
+.kb-table .kb-cell-id{text-align:center;color:#64748b;font-weight:500}
+.kb-table .kb-cell-q{vertical-align:top}
+.kb-table .kb-cell-a{vertical-align:top}
+.kb-table .kb-cell-cat{text-align:center;color:#64748b;font-size:12px}
+.kb-table .kb-cell-st{text-align:center}
+.kb-question-text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.65;font-size:13px;color:#1e293b;word-break:break-word}
+.kb-answer-text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.75;font-size:12px;color:#475569;word-break:break-word;max-width:100%}
+.kb-actions{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;align-items:center}
+.kb-actions .btn{min-width:52px;padding:4px 10px;font-size:11px;border-radius:13px;line-height:1.4}
+@media(max-width:768px){
+  .kb-search-input{width:100%}
+  .kb-table{min-width:700px}
+}
+
+
+/* AI Judge Card */
+.ai-judge-card{background:#fff;border-radius:14px;padding:18px 20px;border:1px solid #e8edf4;box-shadow:0 2px 8px rgba(0,50,110,.03);margin-bottom:18px;transition:box-shadow .2s}
+.ai-judge-card:hover{box-shadow:0 4px 16px rgba(0,50,110,.06)}
+@media(max-width:768px){
+  .ai-judge-card{padding:14px 12px}
+}
+
+
+/* Dashboard Grid */
+.dashboard-grid{display:grid;grid-template-columns:minmax(0, 1fr) minmax(360px, 0.95fr);gap:20px;margin-bottom:20px;align-items:stretch}
+.dashboard-left,.dashboard-right{min-width:0}
+.dashboard-left .alert-box{margin-bottom:12px}
+@media(max-width:900px){
+  .dashboard-grid{grid-template-columns:1fr}
+}
+
+
+/* Utility: 2-line text clamp */
+.text-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Ensure all tables don't overflow body */
+.tbl-wrap table{min-width:700px;width:100%}
+
+/* Button group in cells */
+.btn-group{display:inline-flex;gap:5px;flex-wrap:wrap;align-items:center}
+
+/* Empty state unified */
+.empty-state{text-align:center;color:#94a3b8;padding:40px 20px;font-size:13px}
+.empty-state .empty-icon{font-size:36px;display:block;margin-bottom:8px}
+
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>🛡️ 智慧安防 AI 智能体控制台</h1>
+<p class="sub">📡 设备监测 · 💬 AI 问答 · 🚨 告警处理 · 🆘 紧急求助 · 📬 消息通知</p>
+</div>
+<div class="app-shell">
+<div class="side-nav">
+<div class="nav-title">📋 功能导航</div>
+<div class="tabs">
+<button class="active" onclick="showSection('home')">🏠 首页概览</button>
+<button onclick="showSection('chat')">💬 AI 问答助手</button>
+<button onclick="showSection('device')">📡 设备管理</button>
+<button onclick="showSection('knowledge')">📋 知识库管理</button>
+<button onclick="showSection('alarm')">🚨 告警管理</button>
+	<button onclick="showSection('help')">🆘 紧急求助</button>
+	<button onclick="showSection('message')">📬 消息中心</button>
+<button onclick="showSection('history')">📝 聊天记录</button>
+</div>
+</div>
+<div class="main-panel">
+<div class="main">
+
+<!-- HOME -->
+<section id="sec-home" class="section active">
+<div class="section-header"><div class="sh-left"><div class="section-title">🏠 安防总控台</div><div class="section-desc">系统状态总览 · AI 智能研判 · 快捷操作入口</div></div><div class="section-actions"><button class="btn btn-p btn-xs" onclick="loadDashboard()">🔄 刷新统计</button></div></div>
+
+<!-- Zone 1: System Stats -->
+<div class="stats-row">
+<div class="stat-card"><span class="ic">📡</span><div class="n" id="hDevices">--</div><div class="l">设备数量</div></div>
+<div class="stat-card warn"><span class="ic">⚠️</span><div class="n" id="hAlarms">--</div><div class="l">未处理告警</div></div>
+<div class="stat-card"><span class="ic">📚</span><div class="n" id="hKb">--</div><div class="l">知识库条目</div></div>
+<div class="stat-card"><span class="ic">💬</span><div class="n" id="hChats">--</div><div class="l">今日问答</div></div>
+<div class="stat-card msg-unread"><span class="ic">📬</span><div class="n" id="hUnread" style="color:#dc2626">--</div><div class="l">未读消息</div></div>
+</div>
+
+<!-- Zone 2: Dual Alerts + AI Judge -->
+<div class="dashboard-grid">
+<div class="dashboard-left">
+<div class="alert-box" id="alertBox"><div class="ai">✅</div><div class="at" id="alertMsg">正在查询...</div></div>
+<div class="alert-box blue" id="deviceAlertBox"><div class="ai">📡</div><div class="at" id="deviceAlertMsg">正在检查设备...</div></div>
+</div>
+<div class="dashboard-right">
+<div class="ai-judge-card" id="aiJudgeCard">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+<div><span style="font-size:18px;font-weight:700;color:#1e293b">🤖 AI 安防研判</span>
+<span style="font-size:11px;color:#94a3b8;margin-left:8px">综合分析设备、告警、布防状态</span></div>
+<button class="btn btn-p" id="aiJudgeBtn" onclick="runAiJudge()">🔍 立即研判</button>
+</div>
+<div id="aiJudgeResult" style="margin-top:14px"><p style="color:#94a3b8;font-size:13px;padding:12px 0">点击"立即研判"查看当前安防风险。</p></div>
+</div>
+</div>
+</div>
+
+<!-- Zone 3: Quick Actions -->
+<div class="entry-grid home-entry-grid">
+<div class="entry-card" onclick="showSection('chat')"><div class="ci">💬</div><h3>AI 问答助手</h3><p>文字语音提问，查询设备、告警和安防知识库。</p></div>
+<div class="entry-card" onclick="showSection('knowledge')"><div class="ci">📋</div><h3>知识库管理</h3><p>维护安防知识条目，支持新增、编辑、启停。</p></div>
+<div class="entry-card" onclick="showSection('alarm')"><div class="ci">🚨</div><h3>告警管理</h3><p>查看处理告警，AI 分析和紧急求助联动。</p></div>
+<div class="entry-card" onclick="showSection('history')"><div class="ci">📝</div><h3>聊天记录</h3><p>追溯历史问答，按分类和关键词搜索分析。</p></div>
+<div class="entry-card" onclick="showSection('message')"><div class="ci">📬</div><h3>消息中心</h3><p>站内消息通知，支持告警和求助消息收发。</p></div>
+<div class="entry-card" onclick="showSection('help')"><div class="ci">🆘</div><h3>紧急求助</h3><p>生成求助信息，复制或发送给保安物业。</p></div>
+</div>
+</section>
+
+<!-- CHAT -->
+<section id="sec-chat" class="section">
+<div class="section-header"><div class="sh-left"><div class="section-title">💬 AI 问答助手</div><div class="section-desc">文字提问、语音交互，查询设备状态、告警信息和安防知识</div></div></div>
+<div class="two-col-70-30">
+<div>
+<div class="quick-row">
+<button class="quick-btn" onclick="sendMsg('系统如何布防？')">系统如何布防？</button>
+<button class="quick-btn" onclick="sendMsg('当前设备是否在线？')">📡 当前设备是否在线？</button>
+<button class="quick-btn" onclick="sendMsg('当前是否布防？')">🔒 当前是否布防？</button>
+<button class="quick-btn" onclick="sendMsg('最近有没有告警？')">🚨 最近有没有告警？</button>
+<button class="quick-btn" onclick="sendMsg('发现陌生人怎么办？')">👤 发现陌生人怎么办？</button>
+</div>
+<div class="chat-box" id="chatBox"></div>
+<div class="chat-input-row">
+<input type="text" id="msgInput" placeholder="输入问题，或点击 🎤 语音提问..." autocomplete="off" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}" />
+<button class="ico-btn" id="voiceBtn" onclick="startVoice()" title="语音提问">🎤</button>
+<button class="ico-btn" id="stopBtn" onclick="stopVoice()" title="停止" disabled>⏹</button>
+<button class="ico-btn" id="speakBtn" onclick="speakLast()" title="播报最近回答">🔊</button>
+<button class="send-btn" id="sendBtn" onclick="sendMsg()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+</div>
+<div class="voice-row">
+<span class="vs" id="voiceStatus">语音就绪</span>
+<label class="tgl"><input type="checkbox" id="autoSpeak"> 自动播报</label>
+<label class="tgl"><input type="checkbox" id="alarmPoll"> 自动告警播报</label>
+<button class="btn btn-o btn-xs" onclick="clearChat()">🗑️ 清屏</button>
+</div>
+</div>
+<div class="chat-sidebar">
+<div class="panel-card"><h3>💡 使用提示</h3><p style="font-size:12px;color:#64748b;line-height:1.7">• 输入问题或点击快捷按钮<br>• 点击 🎤 使用语音提问<br>• 开启自动播报听取回答<br>• 点击 🔊 重播最近回答<br>• 开启告警播报自动提醒</p></div>
+</div>
+</div>
+</section>
+
+	<section id="sec-device" class="section">
+<div class="section-header"><div class="sh-left"><div class="section-title">📡 设备管理</div><div class="section-desc">查看设备在线状态、布防状态和电量信息</div></div><div class="section-actions"><button class="btn btn-p btn-xs" onclick="loadDevices()">🔄 刷新设备</button></div></div>
+	<div class="toolbar">
+		<div class="fg"><input type="text" id="dSearch" placeholder="搜索设备名称、编号或位置..." oninput="filterDevices()" /></div>
+	<button class="btn btn-p" onclick="loadDevices()">🔄 刷新设备</button>
+	</div>
+	<div class="tbl-wrap"><table>
+	<thead><tr><th>设备名称</th><th>设备编号</th><th>类型</th><th>位置</th><th style="width:70px">在线</th><th style="width:80px">布防</th><th style="width:70px">电量</th><th>最后上报</th><th style="width:170px">操作</th></tr></thead>
+	<tbody id="dTbody"><tr class="empty"><td colspan="9">加载中...</td></tr></tbody>
+	</table></div>
+	</section>
+
+<!-- KNOWLEDGE -->
+<section id="sec-knowledge" class="section">
+<div class="section-header"><div class="sh-left"><div class="section-title">📋 知识库管理</div><div class="section-desc">管理安防知识条目，支持新增、编辑、启用和停用</div></div><div class="section-actions"><button class="btn btn-p btn-xs" onclick="openKbModal()">＋ 新增知识</button> <button class="btn btn-o btn-xs" onclick="loadKb()">🔄 刷新</button> <span class="kb-mini-stat">📚 知识条目：<strong id="kbTotal" style="color:#2563eb;font-size:20px">0</strong></span></div></div>
+<div class="kb-search-row">
+<input type="text" id="kbSearch" class="kb-search-input" placeholder="🔍 搜索问题、关键词..." onkeydown="if(event.key==='Enter')loadKb()" />
+</div>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th style="width:45px">ID</th><th>问题</th><th>答案</th><th style="width:80px">分类</th><th style="width:60px">状态</th><th style="width:130px">操作</th></tr></thead>
+<tbody id="kbTbody"><tr class="empty"><td colspan="6">加载中...</td></tr></tbody>
+</table></div>
+<div class="pagi" id="kbPagi"></div>
+</section>
+
+<!-- ALARM -->
+<section id="sec-alarm" class="section">
+<div class="section-header"><div class="sh-left"><div class="section-title">🚨 告警管理</div><div class="section-desc">集中查看、筛选和处理设备告警，及时响应安全事件</div></div><div class="section-actions"><button class="btn btn-d btn-xs" onclick="quickHighAlarm()">⚠️ 高危未处理</button> <button class="btn btn-p btn-xs" onclick="loadAlarms()">🔄 刷新</button></div></div>
+<div class="stats-row">
+<div class="stat-card"><div class="n" id="aTotal">0</div><div class="l">告警总数</div></div>
+<div class="stat-card warn"><div class="n" id="aUnhandled">0</div><div class="l">未处理</div></div>
+<div class="stat-card warn"><div class="n" id="aHigh">0</div><div class="l">高等级未处理</div></div>
+<div class="stat-card"><div class="n" id="aHandled">0</div><div class="l">已处理</div></div>
+</div>
+<div class="toolbar">
+<div class="fg">
+<select id="aStatus" onchange="loadAlarms()"><option value="">全部状态</option><option value="UNHANDLED">未处理</option><option value="HANDLED">已处理</option></select>
+<select id="aLevel" onchange="loadAlarms()"><option value="">全部等级</option><option value="HIGH">HIGH</option><option value="MEDIUM">MEDIUM</option><option value="LOW">LOW</option></select>
+<input type="text" id="aSearch" placeholder="搜索设备、内容..." oninput="loadAlarms()" />
+</div>
+<button class="btn btn-p" onclick="loadAlarms()">🔄 刷新</button> <button class="btn btn-d btn-xs" onclick="quickHighAlarm()">⚠️ 高危未处理</button>
+</div>
+<div class="tbl-wrap"><table>
+<thead><tr><th>ID</th><th>设备</th><th>编号</th><th>类型</th><th>等级</th><th>内容</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+<tbody id="aTbody"><tr class="empty"><td colspan="9">加载中...</td></tr></tbody>
+</table></div>
+<div class="pagi" id="aPagi"></div>
+</section>
+
+<!-- HISTORY -->
+<section id="sec-help" class="section">
+<div class="section-header"><div class="sh-left"><div class="section-title">🆘 紧急求助</div><div class="section-desc">生成求助信息，一键复制发送给家属、保安或物业中心</div></div></div>
+<div class="help-layout">
+<!-- LEFT: Contacts -->
+<div class="help-contacts-panel">
+<div class="panel-card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0;padding:0;border:none">📋 紧急联系人</h3><button class="btn btn-p btn-xs" onclick="openContactModal()">＋ 新增</button></div>
+<div id="contactList" style="font-size:13px;color:#5f6b7a;max-height:520px;overflow-y:auto">加载中...</div>
+</div>
+</div>
+<!-- MIDDLE: Generate form -->
+<div class="help-form-panel">
+<div class="panel-card">
+<h3>📝 生成求助信息</h3>
+<div class="fg2"><label>设备名称</label><input id="helpDevice" placeholder="设备名称" /></div>
+<div class="fg2"><label>位置</label><input id="helpLocation" placeholder="位置" /></div>
+<div class="fg2"><label>异常内容</label><input id="helpContent" placeholder="异常内容" /></div>
+<div class="fg2"><label>告警等级</label><select id="helpLevel"><option value="HIGH">高</option><option value="MEDIUM">中</option><option value="LOW">低</option></select></div>
+<button class="btn btn-p" onclick="generateHelpMsg()" style="width:100%;margin-bottom:10px">生成求助信息</button>
+<button class="btn btn-o" onclick="generateFromAlarm()" style="width:100%">📡 使用最新告警生成</button>
+</div>
+</div>
+<!-- RIGHT: Preview -->
+<div class="help-preview-panel">
+<div class="panel-card">
+<h3>📄 求助信息预览</h3>
+<textarea id="helpPreview" readonly style="width:100%;height:360px;border:1px solid #dce3ee;border-radius:10px;padding:14px;font-size:13px;font-family:'SF Mono',Consolas,Menlo,monospace;resize:vertical;line-height:1.7;white-space:pre-wrap;background:#fafbfd;color:#334155">点击生成求助信息或使用最新告警生成...</textarea>
+<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+<button class="btn btn-p" onclick="copyHelpMsg()" style="flex:1;min-width:140px">📋 复制求助信息</button>
+<button class="btn btn-o" onclick="sendHelpAsMessage()" style="flex:1;min-width:140px">📬 发送为站内消息</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+	<section id="sec-message" class="section">
+<div class="section-header"><div class="sh-left"><div class="section-title">📬 消息中心</div><div class="section-desc">系统用户之间的站内消息通知，支持收件箱和发件箱管理</div></div></div>
+<div class="toolbar" style="margin-bottom:12px"><div class="fg"><input type="text" id="msgSearch" placeholder="搜索标题、内容、发件人或收件人..." oninput="refreshMsgData()" style="width:240px" /><select id="msgStatusFilter" onchange="refreshMsgData()"><option value="">全部状态</option><option value="unread">未读</option><option value="read">已读</option></select><select id="msgTypeFilter" onchange="refreshMsgData()"><option value="">全部类型</option><option value="NORMAL">NORMAL</option><option value="ALARM">ALARM</option><option value="HELP">HELP</option></select></div><button class="btn btn-p" onclick="refreshMsgData()">🔄 刷新</button></div>
+<div class="msg-user-bar"><label>👤 当前用户：</label><select id="msgCurrentUser" onchange="switchMsgUser()"><option value="">请选择</option></select> <span class="msg-unread-count">未读 <strong id="msgUnreadBadge">0</strong></span></div>
+<div style="display:flex;gap:8px;margin-bottom:12px">
+	<button class="btn" id="msgTabInbox" style="background:#1a73e8;color:#fff" onclick="showMsgTab('inbox')">📥 收件箱</button>
+	<button class="btn" id="msgTabOutbox" style="background:#fff;color:#1a73e8;border:1px solid #1a73e8" onclick="showMsgTab('outbox')">📤 发件箱</button>
+	<button class="btn" id="msgTabSend" style="background:#fff;color:#1a73e8;border:1px solid #1a73e8" onclick="showMsgTab('send')">✉️ 发送消息</button>
+	</div>
+	<div id="msgInboxPanel"><div class="tbl-wrap"><table><thead><tr><th>状态</th><th>发件人</th><th>标题</th><th>内容</th><th>时间</th><th>操作</th></tr></thead><tbody id="msgInboxTbody"><tr class="empty"><td colspan="6">请先选择当前用户</td></tr></tbody></table></div></div>
+	<div id="msgOutboxPanel" style="display:none"><div class="tbl-wrap"><table><thead><tr><th>收件人</th><th>标题</th><th>内容</th><th>时间</th><th>操作</th></tr></thead><tbody id="msgOutboxTbody"><tr class="empty"><td colspan="5">请先选择当前用户</td></tr></tbody></table></div></div>
+	<div id="msgSendPanel" style="display:none">
+	<div class="send-form-card">
+	<div class="fg2"><label>接收人 *</label><select id="msgReceiver"></select></div>
+	<div class="fg2"><label>标题 *</label><input id="msgTitle" placeholder="消息标题" /></div>
+	<div class="fg2"><label>内容 *</label><textarea id="msgContent" rows="4" placeholder="输入消息内容..."></textarea></div>
+	<button class="btn btn-p" onclick="sendMessageMsg()">📨 发送</button>
+	</div></div>
+	</section>
+<section id="sec-history" class="section">
+<div class="section-header"><div class="sh-left"><div class="section-title">📝 聊天记录</div><div class="section-desc">查看历史问答记录，按分类和关键词搜索</div></div><div class="section-actions"><button class="btn btn-p btn-xs" onclick="loadChatHistory()">🔄 刷新</button></div></div>
+<div class="stats-row">
+<div class="stat-card"><div class="n" id="cTotal">0</div><div class="l">总聊天</div></div>
+<div class="stat-card"><div class="n" id="cToday">0</div><div class="l">今日</div></div>
+<div class="stat-card"><div class="n" id="cKb">0</div><div class="l">匹配知识库</div></div>
+<div class="stat-card"><div class="n" id="cUnmatch">0</div><div class="l">未匹配</div></div>
+</div>
+<div class="toolbar">
+<div class="fg">
+<select id="cCat" onchange="loadChatHistory()"><option value="">全部分类</option><option value="知识库">知识库</option><option value="设备状态">设备状态</option><option value="告警查询">告警查询</option><option value="未匹配">未匹配</option></select>
+<input type="text" id="cSearch" placeholder="搜索问题或回答..." onkeydown="if(event.key==='Enter')loadChatHistory()" />
+</div>
+<button class="btn btn-p" onclick="loadChatHistory()">🔄 刷新</button>
+</div>
+<div class="tbl-wrap"><table>
+<thead><tr><th style="width:45px">ID</th><th>用户问题</th><th>回答摘要</th><th style="width:60px">知识ID</th><th style="width:70px">类型</th><th style="width:100px">时间</th><th style="width:80px">操作</th></tr></thead>
+<tbody id="cTbody"><tr class="empty"><td colspan="7">加载中...</td></tr></tbody>
+</table></div>
+<div class="pagi" id="cPagi"></div>
+</section>
+
+</div><!-- .main -->
+</div><!-- .main-panel -->
+</div><!-- .app-shell -->
+</div><!-- .container -->
+
+<!-- KB MODAL -->
+<div class="modal-over" id="kbModal"><div class="modal">
+<h2 id="kbModalTitle">新增知识</h2>
+<input type="hidden" id="kbEditId" />
+<div class="fg2"><label>问题 *</label><input id="kbQ" placeholder="例如：系统如何布防？" /></div>
+<div class="fg2"><label>答案 *</label><textarea id="kbA" rows="3" placeholder="输入回答内容..."></textarea></div>
+<div class="fg2"><label>关键词</label><input id="kbKw" placeholder="逗号分隔，如：布防,安防" /></div>
+<div class="fg2"><label>分类</label><input id="kbCat" placeholder="如：布防、告警" /></div>
+<div class="fg2"><label>状态</label><select id="kbEn"><option value="1">启用</option><option value="0">停用</option></select></div>
+<div style="text-align:right;margin-top:14px">
+<button class="btn btn-o" onclick="closeKbModal()">取消</button>
+<button class="btn btn-p" id="kbSaveBtn" onclick="saveKb()">保存</button>
+</div>
+</div></div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-over" id="contactModal"><div class="modal"><h2 id="contactModalTitle">新增联系人</h2><input type="hidden" id="contactEditIdx" value="-1" /><div class="fg2"><label>姓名 *</label><input id="contactName" placeholder="如：家属联系人" /></div><div class="fg2"><label>电话 *</label><input id="contactPhone" placeholder="如：13800000000" /></div><div class="fg2"><label>类型</label><select id="contactType"><option value="家属">家属</option><option value="保安">保安</option><option value="物业">物业</option><option value="其他">其他</option></select></div><div style="text-align:right;margin-top:14px"><button class="btn btn-o" onclick="closeModal('contactModal')">取消</button><button class="btn btn-p" id="contactSaveBtn" onclick="saveContact()">保存</button></div></div></div>
+<div class="modal-over" id="detailModal"><div class="modal">
+<h2 id="detTitle">详情</h2>
+<div id="detContent"></div>
+<div style="text-align:right;margin-top:14px">
+<button class="btn btn-o" onclick="closeModal('detailModal')">关闭</button>
+<button class="btn btn-s" id="detHandleBtn" style="display:none" onclick="handleFromDetail()">标记已处理</button>
+<button class="btn btn-o btn-xs" id="detHelpBtn" style="display:none" onclick="if(window._detAlarm)generateHelpFromAlarm(window._detAlarm)">🆘 生成求助信息</button>
+<button class="btn btn-s btn-xs" id="detMsgBtn" style="display:none">📬 发送告警消息</button>
+	<button class="btn btn-w btn-xs" id="detAiBtn" style="display:none" onclick="if(window._detAlarm)analyzeAlarmWithAi(window._detAlarm.id)">🤖 AI 分析此告警</button>
+</div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var API="http://localhost:8080/api";
+
+// ==================== UTILS ====================
+function $(id){return document.getElementById(id)}
+function getList(r){if(!r)return[];if(Array.isArray(r))return r;if(r.data&&Array.isArray(r.data))return r.data;if(r.records&&Array.isArray(r.records))return r.records;return[]}
+function esc(t){if(!t)return"";var d=document.createElement("div");d.appendChild(document.createTextNode(""+t));return d.innerHTML}
+function ft(t){return t?(""+t).replace("T"," "):"-"}
+function toast(m,t){var e=$("toast");e.textContent=m;e.className="toast toast-"+(t||"info")+" show";setTimeout(function(){e.className="toast"},2000)}
+function closeModal(id){$(id).classList.remove("active")}
+document.addEventListener("keydown", function(e){if(e.key==="Escape"){var modals=["kbModal","detailModal","contactModal"];for(var i=modals.length-1;i>=0;i--){if($(modals[i])&&$(modals[i]).classList.contains("active")){closeModal(modals[i]);e.preventDefault();break}}}});
+function safeFetch(url, options){return fetch(url, options).then(function(r){if(!r.ok){throw new Error("HTTP "+r.status)}return r.json()})}
+
+function showSection(name){
+  document.querySelectorAll(".section").forEach(function(s){s.classList.remove("active")});
+  document.querySelectorAll(".tabs button").forEach(function(b){b.classList.remove("active")});
+  var sec = $("sec-"+name); if (!sec) { name = "home"; sec = $("sec-home"); } sec.classList.add("active");
+	  var idx={home:0,chat:1,device:2,knowledge:3,alarm:4,help:5,message:6,history:7}[name]||0;
+  var btns=document.querySelectorAll(".tabs button");if(btns[idx])btns[idx].classList.add("active");
+  if(name==="home")loadDashboard();
+  if(name==="device")loadDevices();
+  if(name==="knowledge")loadKb();
+  if(name==="alarm")loadAlarms();
+	  if(name==="help")loadContacts();
+	  if(name==="message")loadMessages();
+  if(name==="history")loadChatHistory();
+}
+
+// ==================== HOME DASHBOARD ====================
+var _dashFailCount=0; var _dashTotal=5;
+function loadDashboard(){
+	  fetch(API+"/device/status").then(function(r){return r.json()}).then(function(d){var list=getList(d);$("hDevices").textContent=list.length;var off=list.filter(function(dv){return dv.online===0});var db=$("deviceAlertBox"),dm=$("deviceAlertMsg");if(off.length>0){db.className="alert-box red";var names=off.map(function(dv){return dv.deviceName}).join("、");dm.innerHTML="<strong>⚠️ 存在离线设备</strong><br>请检查设备电源或网络："+names}else{db.className="alert-box";dm.innerHTML="<strong>✅ 设备运行正常</strong><br>所有设备在线。"}}).catch(function(){$("hDevices").textContent="--";_dashFailCount++});
+  fetch(API+"/alarm/list").then(function(r){return r.json()}).then(function(d){var u=0;getList(d).forEach(function(a){if(a.alarmStatus==="UNHANDLED")u++});var el=$("hAlarms");el.textContent=u;if(u>0){el.style.color="#ea4335";el.style.fontWeight="800"}else{el.style.color="#1a73e8";el.style.fontWeight="700"}}).catch(function(){$("hAlarms").textContent="--";_dashFailCount++});
+  fetch(API+"/kb/list").then(function(r){return r.json()}).then(function(d){$("hKb").textContent=getList(d).length}).catch(function(){$("hKb").textContent="--";_dashFailCount++});
+  fetch(API+"/chat-record/list").then(function(r){return r.json()}).then(function(d){var t=new Date().toISOString().slice(0,10);var c=0;getList(d).forEach(function(r){if((r.createdAt||"").indexOf(t)===0)c++});$("hChats").textContent=c}).catch(function(){$("hChats").textContent="--";_dashFailCount++});
+  if(msgCurrentUserId){fetch(API+"/messages/unread-count?userId="+msgCurrentUserId).then(function(r){return r.json()}).then(function(d){$("hUnread").textContent=d.count||0}).catch(function(){$("hUnread").textContent="0"})}
+  fetch(API+"/alarm/latest").then(function(r){return r.json()}).then(function(d){var b=$("alertBox"),m=$("alertMsg");if(d&&d.hasAlarm&&d.data){b.className="alert-box red";m.innerHTML="<strong>⚠️ 存在未处理告警</strong><br>"+esc(d.data.alarmContent||d.data.alarmMessage||"")+"<br><small>请及时查看处理。</small>"}else{b.className="alert-box";m.innerHTML="<strong>✅ 系统运行正常</strong><br>当前暂无未处理告警。"}}).catch(function(){$("alertMsg").textContent="无法获取告警状态";_dashFailCount++});
+  setTimeout(function(){if(_dashFailCount>=_dashTotal){toast("部分统计数据加载失败","err")}_dashFailCount=0;},2000);
+}
+
+function startDashboardTimer(){if(window._dashTimer)clearInterval(window._dashTimer);window._dashTimer=setInterval(loadDashboard,30000)}
+function stopDashboardTimer(){if(window._dashTimer){clearInterval(window._dashTimer);window._dashTimer=null}}
+
+// ==================== AI CHAT ====================
+var lastAnswer="";
+var SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+var rec=null,listening=false;
+var alarmTimer=null,lastAlarmId=null;
+
+function scrollChat(){var c=$("chatBox");requestAnimationFrame(function(){c.scrollTop=c.scrollHeight})}
+function appendMsg(type,text,kid,cat,err){
+  var d=document.createElement("div");d.className="msg "+type;
+  var h='<div class="lbl">'+(type==="user"?"你":"🤖 智能助手")+'</div>';
+  h+='<div class="b'+(err?'" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca':'')+'">'+esc(text)+'</div>';
+  if(kid||cat){h+='<div class="m">';if(cat)h+='<span>📂 '+esc(cat)+'</span>';if(kid)h+='<span>🔗 ID:'+kid+'</span>';h+='</div>'}
+  d.innerHTML=h;$("chatBox").appendChild(d);scrollChat();return d;
+}
+function appendTyping(){
+  var d=document.createElement("div");d.className="msg bot";d.id="typing";
+  d.innerHTML='<div class="lbl">🤖 智能助手 思考中...</div><div class="b"><div class="typing"><span></span><span></span><span></span></div></div>';
+  $("chatBox").appendChild(d);scrollChat();return d;
+}
+function rmTyping(el){if(el&&el.parentNode)el.parentNode.removeChild(el)}
+// ==================== AI 智能体回答渲染 ====================
+var _intentNames={SECURITY_STATUS:"安防状态查询",DEVICE_QUERY:"设备状态查询",ALARM_QUERY:"告警信息查询",HELP_ADVICE:"求助建议",KNOWLEDGE_QA:"知识库问答",UNKNOWN:"通用问答"};
+var _toolLabels={device_status:"设备状态",alarm_record:"告警记录",kb_knowledge:"知识库"};
+var _riskLevels={LOW:"#16a34a",MEDIUM:"#f97316",HIGH:"#dc2626",CRITICAL:"#991b1b"};
+var _riskBg={LOW:"#f0fdf4",MEDIUM:"#fff7ed",HIGH:"#fef2f2",CRITICAL:"#fef2f2"};
+var _riskNames={LOW:"低风险",MEDIUM:"中风险",HIGH:"高风险",CRITICAL:"严重风险"};
+function renderAgentMsg(data){
+  var rl=data.riskLevel||"LOW";
+  var color=_riskLevels[rl]||"#64748b";
+  var bg=_riskBg[rl]||"#f8fafc";
+  var d=document.createElement("div");d.className="msg bot";
+  var h='';
+  // header
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">';
+  h+='<span style="font-weight:700;color:#1e293b">🤖 AI 综合判断</span>';
+  if(data.intent){h+='<span style="font-size:10px;color:#94a3b8">'+esc(_intentNames[data.intent]||data.intent)+'</span>';}
+  h+='<span class="badge" style="background:'+color+';color:#fff;font-size:10px">'+esc(_riskNames[rl]||rl)+'</span>';
+  if(data.source){h+='<span class="badge bg-gray" style="font-size:9px">来源：'+esc(data.source)+'</span>';}
+  h+='</div>';
+  // answer
+  h+='<div style="background:'+bg+';border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid '+color+';border-left:4px solid '+color+'">';
+  h+='<div style="color:#1e293b;font-size:14px;line-height:1.7;white-space:pre-wrap">'+esc(data.answer||"")+'</div>';
+  h+='</div>';
+  // evidence
+  if(data.evidence&&data.evidence.length>0){
+    h+='<div style="margin-bottom:8px"><strong style="color:#1e293b;font-size:12px">📋 判断依据：</strong></div>';
+    h+='<ul style="margin:4px 0 8px 18px;color:#475569;font-size:11px;line-height:1.8">';
+    for(var i=0;i<data.evidence.length;i++){h+='<li>'+esc(data.evidence[i])+'</li>';}
+    h+='</ul>';
+  }
+  // suggestions
+  if(data.suggestions&&data.suggestions.length>0){
+    h+='<div style="margin-bottom:8px"><strong style="color:#1e293b;font-size:12px">💡 建议操作：</strong></div>';
+    h+='<ol style="margin:4px 0 8px 18px;color:#475569;font-size:11px;line-height:1.8">';
+    for(var i=0;i<data.suggestions.length;i++){h+='<li>'+esc(data.suggestions[i])+'</li>';}
+    h+='</ol>';
+  }
+  // usedTools
+  if(data.usedTools&&data.usedTools.length>0){
+    h+='<div style="margin-bottom:10px"><strong style="color:#1e293b;font-size:12px">🔧 使用数据：</strong> ';
+    var tools=data.usedTools.map(function(t){return _toolLabels[t]||t;});
+    h+='<span style="color:#64748b;font-size:11px">'+esc(tools.join("、"))+'</span></div>';
+  }
+  // actionDraft
+  if(data.actionDraft&&data.actionDraft.type&&data.actionDraft.type!=="NONE"){
+    h+='<div style="margin-top:10px;padding:10px 12px;background:#fffbeb;border-radius:10px;border:1px solid #fcd34d">';
+    h+='<div style="font-size:11px;color:#92400e;margin-bottom:6px">📝 AI 已生成操作草稿，你可以选择：</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    h+='<button class="btn btn-w btn-xs" onclick="fillHelpFromDraft(this)" data-type="'+esc(data.actionDraft.type)+'" data-title="'+esc(data.actionDraft.title||"")+'" data-content="'+esc(data.actionDraft.content||"").replace(/"/g,"&quot;")+'">🆘 带入紧急求助</button>';
+    h+='<button class="btn btn-o btn-xs" onclick="fillMessageFromDraft(this)" data-type="'+esc(data.actionDraft.type)+'" data-title="'+esc(data.actionDraft.title||"")+'" data-content="'+esc(data.actionDraft.content||"").replace(/"/g,"&quot;")+'">📬 带入消息中心</button>';
+    h+='</div></div>';
+  }
+  d.innerHTML=h;$("chatBox").appendChild(d);scrollChat();
+}
+function fillHelpFromDraft(el){
+  var content=el.getAttribute("data-content")||"";
+  var title=el.getAttribute("data-title")||"";
+  $("helpContent").value=content;$("helpLevel").value="HIGH";
+  if(typeof closeModal==="function")closeModal("detailModal");
+  showSection("help");setTimeout(function(){generateHelpMsg();},300);
+  toast("已根据 AI 建议生成求助信息","ok");
+}
+function fillMessageFromDraft(el){
+  var content=el.getAttribute("data-content")||"";
+  var title=el.getAttribute("data-title")||"";
+  var type=el.getAttribute("data-type")||"HELP_MESSAGE";
+  openMsgWithContent(title,content,type==="HELP_MESSAGE"?"HELP":type==="ALARM_MESSAGE"?"ALARM":"NORMAL");
+  toast("已根据 AI 建议带入消息中心","ok");
+}
+function clearChat(){$("chatBox").innerHTML="";appendMsg("bot","聊天已清屏。继续提问吧：\n• 输入文字或点击 🎤 语音提问\n• 查询设备状态、告警信息\n• 咨询安防知识");lastAnswer="";toast("已清屏","info")}
+
+function sendMsg(prefill){
+  var msg=(prefill||$("msgInput").value).trim();if(!msg){toast("请输入问题","err");return}
+  appendMsg("user",msg);if(!prefill)$("msgInput").value="";
+  var t=appendTyping();$("sendBtn").disabled=$("msgInput").disabled=true;
+  // Step 7: 优先调用 AI 智能体接口
+  fetch(API+"/ai/agent-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:1,message:msg})})
+  .then(function(r){if(!r.ok)throw Error("agent fail");return r.json()})
+  .then(function(d){if(d.code===200&&d.data){rmTyping(t);renderAgentMsg(d.data);lastAnswer=d.data.answer;if($("autoSpeak").checked)doSpeak(d.data.answer);return}else{throw Error("agent empty")}})
+  .catch(function(){
+    // fallback 到原知识库聊天接口
+    rmTyping(t);t=appendTyping();
+    return fetch(API+"/kb/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:1,message:msg})})
+    .then(function(r){if(!r.ok)throw Error("HTTP "+r.status);return r.json()})
+    .then(function(d){rmTyping(t);appendMsg("bot",d.answer,d.matchedKnowledgeId,d.category);lastAnswer=d.answer;if($("autoSpeak").checked)doSpeak(d.answer)})
+  })
+  .catch(function(e){rmTyping(t);appendMsg("bot","后端连接失败，请确认 Spring Boot 是否启动。",null,null,true);toast("后端连接失败","err")})
+  .finally(function(){$("sendBtn").disabled=$("msgInput").disabled=false;$("msgInput").focus()});
+}
+
+// voice
+if(!("speechSynthesis" in window)){$("speakBtn").disabled=true;$("autoSpeak").disabled=true}
+if(!SpeechRecognition){$("voiceBtn").disabled=true;$("voiceStatus").textContent="⚠️ 浏览器不支持语音识别"}
+if(SpeechRecognition){rec=new SpeechRecognition();rec.lang="zh-CN";rec.interimResults=false;rec.continuous=false;rec.maxAlternatives=1;
+rec.onstart=function(){listening=true;$("voiceBtn").classList.add("lst");$("stopBtn").disabled=false;$("voiceStatus").textContent="正在听，请说话……"};
+rec.onresult=function(e){var t="";for(var i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;t=t.trim();if(t){$("voiceStatus").textContent="识别："+t;sendMsg(t)}else{$("voiceStatus").textContent="未识别到有效语音"}};
+rec.onerror=function(e){if(e.error==="not-allowed")$("voiceStatus").textContent="⚠️ 麦克风权限被拒绝";else if(e.error==="no-speech")$("voiceStatus").textContent="未检测到语音";else if(e.error!=="aborted")$("voiceStatus").textContent="出错:"+e.error;resetVoice()};
+rec.onend=function(){resetVoice()}}
+function resetVoice(){listening=false;$("voiceBtn").classList.remove("lst");$("stopBtn").disabled=true;$("voiceStatus").textContent="语音就绪"}
+function startVoice(){if(!rec){toast("浏览器不支持语音识别，请使用 Chrome 或 Edge","err");return}if(listening)return;if("speechSynthesis" in window)speechSynthesis.cancel();try{rec.start()}catch(e){$("voiceStatus").textContent="启动失败";resetVoice()}}
+function stopVoice(){if(rec&&listening){rec.abort();resetVoice()}if("speechSynthesis" in window)speechSynthesis.cancel()}
+
+function stripSpeech(t){if(!t)return"";var d=document.createElement("div");d.innerHTML=t;var p=d.textContent||"";p=p.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu,"");p=p.replace(/\n{3,}/g,"\n\n").replace(/[ ]{2,}/g," ");return p.trim()}
+function doSpeak(t){if(!("speechSynthesis" in window)||!t)return;speechSynthesis.cancel();var c=stripSpeech(t);if(!c)return;var u=new SpeechSynthesisUtterance(c);u.lang="zh-CN";u.rate=1;u.pitch=1;speechSynthesis.speak(u)}
+function speakLast(){if(lastAnswer){if(rec&&listening){rec.abort();resetVoice()}doSpeak(lastAnswer);$("voiceStatus").textContent="正在播报……"}else{$("voiceStatus").textContent="暂无回答"}}
+
+function pollAlarm(){fetch(API+"/alarm/latest").then(function(r){return r.json()}).then(function(d){if(d.hasAlarm&&d.data&&d.data.id!==lastAlarmId){lastAlarmId=d.data.id;var t=d.speechText||"";if(t&&("speechSynthesis" in window)){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="zh-CN";u.rate=1;u.pitch=1;speechSynthesis.speak(u);$("voiceStatus").textContent="🔔 自动告警播报"}}if(!d.hasAlarm)lastAlarmId=null}).catch(function(){})}
+$("alarmPoll").addEventListener("change",function(){if(this.checked){pollAlarm();alarmTimer=setInterval(pollAlarm,10000);toast("已开启告警自动播报","info")}else{if(alarmTimer)clearInterval(alarmTimer);alarmTimer=null;lastAlarmId=null;toast("已关闭告警自动播报","info")}});
+window.addEventListener("beforeunload",function(){if(alarmTimer)clearInterval(alarmTimer)});
+
+// init chat welcome
+var _chatInited=false; var _pageInited=false;
+function initChatOnce(){if(_chatInited)return;_chatInited=true;appendMsg("bot","你好！我是智慧安防 AI 智能助手。\n\n你可以：\n• 输入文字提问或点击 🎤 语音提问\n• 查询设备状态、告警信息\n• 咨询布防、陌生人处理等安防知识\n• 开启自动播报，让系统朗读回答")}
+function initPage(){if(_pageInited)return;_pageInited=true;loadDashboard();initChatOnce();loadMessages();startDashboardTimer()}
+
+// ==================== DEVICE MANAGEMENT ====================
+var deviceList=[];
+function loadDevices(){
+  fetch(API+"/device/status").then(function(r){return r.json()}).then(function(d){
+    deviceList=getList(d);filterDevices();
+  }).catch(function(){deviceList=[];$("dTbody").innerHTML='<tr class="empty"><td colspan="9">设备数据加载失败</td></tr>';toast("设备数据加载失败","err")});
+}
+function filterDevices(){
+  var sw=($("dSearch")?$("dSearch").value:"").trim().toLowerCase();
+  var list=deviceList;
+  if(sw){list=list.filter(function(dv){return(dv.deviceName+" "+dv.deviceCode+" "+dv.location+" "+dv.deviceType).toLowerCase().indexOf(sw)!==-1})}
+  renderDevices(list);
+}
+function renderDevices(list){
+  if(!list.length){$("dTbody").innerHTML='<tr class="empty"><td colspan="9">'+(deviceList.length?"暂无匹配设备":"暂无设备数据")+'</td></tr>';return}
+  var h="";for(var i=0;i<list.length;i++){var dv=list[i];
+  var onBadge=dv.online==1?'<span class="badge bg-green">在线</span>':'<span class="badge bg-red">离线</span>';
+  var dfBadge=dv.defense==1?'<span class="badge bg-blue">已布防</span>':'<span class="badge bg-gray">已撤防</span>';
+  var bat=dv.battery!=null?dv.battery:null;var batHtml=bat!=null?(bat<20?'<span style="color:#ea4335;font-weight:600">'+bat+'%</span> <span class="badge bg-red">低电量</span>':bat+"%"):"-";
+  var rowStyle=(bat!=null&&bat<20)?' style="border-left:3px solid #ea4335;background:#fff8f8"':"";
+  var dfBtn=dv.defense==1?'<button class="btn btn-xs btn-o" disabled>已布防</button> <button class="btn btn-xs btn-s" onclick="defenseOff(\''+esc(dv.deviceCode)+'\')">撤防</button>':'<button class="btn btn-xs btn-p" onclick="defenseOn(\''+esc(dv.deviceCode)+'\')">布防</button> <button class="btn btn-xs btn-o" disabled>已撤防</button>';
+  h+='<tr'+rowStyle+'><td>'+esc(dv.deviceName)+'</td><td>'+esc(dv.deviceCode)+'</td><td>'+esc(dv.deviceType||"-")+'</td><td>'+esc(dv.location||"-")+'</td><td>'+onBadge+'</td><td>'+dfBadge+'</td><td>'+batHtml+'</td><td style="white-space:nowrap">'+ft(dv.lastReportTime)+'</td><td>'+dfBtn+'</td></tr>'}
+  $("dTbody").innerHTML=h;
+}
+function defenseOn(code){if(!confirm("确定对 "+code+" 执行布防？"))return;if(window._defenseBusy)return;window._defenseBusy=true;fetch(API+"/device/"+encodeURIComponent(code)+"/defense-on",{method:"POST"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"布防成功","ok");loadDevices()}).catch(function(){toast("布防失败","err")}).finally(function(){window._defenseBusy=false})}
+function defenseOff(code){if(!confirm("确定对 "+code+" 执行撤防？"))return;if(window._defenseBusy)return;window._defenseBusy=true;fetch(API+"/device/"+encodeURIComponent(code)+"/defense-off",{method:"POST"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"撤防成功","ok");loadDevices()}).catch(function(){toast("撤防失败","err")}).finally(function(){window._defenseBusy=false})}
+
+// ==================== KNOWLEDGE BASE ====================
+function loadKb(){
+  var kw=$("kbSearch").value.trim();var url=API+"/kb/list"+(kw?"?keyword="+encodeURIComponent(kw):"");
+  fetch(url).then(function(r){return r.json()}).then(function(d){renderKb(getList(d))}).catch(function(){toast("知识库加载失败","err");$("kbTbody").innerHTML='<tr class="empty"><td colspan="6">加载失败</td></tr>'});
+}
+function renderKb(list){
+  $("kbTotal").textContent=list.length;$("kbPagi").textContent="共 "+list.length+" 条";
+  if(!list.length){$("kbTbody").innerHTML='<tr class="empty"><td colspan="6">暂无知识条目，点击「+ 新增知识」添加</td></tr>';return}
+  var h="";for(var i=0;i<list.length;i++){var k=list[i];var sb=k.enabled==1?'<span class="badge bg-green">启用</span>':'<span class="badge bg-red">停用</span>';var tl=k.enabled==1?"停用":"启用";
+  h+='<tr><td class="kb-cell-id">'+k.id+'</td><td class="kb-cell-q"><div class="kb-question-text" title="'+esc(k.question)+'">'+esc(k.question)+'</div></td><td class="kb-cell-a"><div class="kb-answer-text" title="'+esc(k.answer)+'">'+esc(k.answer)+'</div></td><td class="kb-cell-cat">'+esc(k.category||"-")+'</td><td class="kb-cell-st">'+sb+'</td><td class="kb-cell-act"><div class="kb-actions"><button class="btn btn-o btn-xs" onclick="editKb('+k.id+')">编辑</button><button class="btn btn-xs '+(k.enabled==1?'btn-o':'btn-s')+'" onclick="toggleKb('+k.id+')">'+tl+'</button><button class="btn btn-d btn-xs" onclick="deleteKb('+k.id+')">删除</button></div></td></tr>'}
+  $("kbTbody").innerHTML=h;
+}
+function openKbModal(){window._kbEdit=false;$("kbModalTitle").textContent="新增知识";$("kbEditId").value="";$("kbQ").value=$("kbA").value=$("kbKw").value=$("kbCat").value="";$("kbEn").value="1";$("kbSaveBtn").textContent="保存";$("kbModal").classList.add("active")}
+function closeKbModal(){closeModal("kbModal")}
+function editKb(id){
+  fetch(API+"/kb/list").then(function(r){return r.json()}).then(function(d){var list=getList(d);
+    for(var i=0;i<list.length;i++){if(list[i].id==id){var k=list[i];window._kbEdit=true;$("kbModalTitle").textContent="编辑知识 #"+id;$("kbEditId").value=id;$("kbQ").value=k.question;$("kbA").value=k.answer;$("kbKw").value=k.keywords||"";$("kbCat").value=k.category||"";$("kbEn").value=k.enabled;$("kbSaveBtn").textContent="更新";$("kbModal").classList.add("active");return}}
+  }).catch(function(){toast("获取知识详情失败","err")});
+}
+function saveKb(){
+  var q=$("kbQ").value.trim(),a=$("kbA").value.trim();if(!q||!a){toast("问题和答案不能为空","err");return}
+  var body={question:q,answer:a,keywords:$("kbKw").value.trim(),category:$("kbCat").value.trim(),enabled:parseInt($("kbEn").value)};
+  var url,method;
+  if(window._kbEdit){body.id=parseInt($("kbEditId").value);url=API+"/kb/update";method="PUT"}else{url=API+"/kb/add";method="POST"}
+  var btn=$("kbSaveBtn");btn.disabled=true;btn.textContent="保存中...";
+  fetch(url,{method:method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+  .then(function(r){return r.json()}).then(function(d){if(d.success||d.code===200){toast(d.message||"操作成功","ok");closeKbModal();loadKb()}else{toast(d.message||"操作失败","err")}})
+  .catch(function(e){toast("保存失败","err")}).finally(function(){btn.disabled=false;btn.textContent="保存"});
+}
+function deleteKb(id){if(!confirm("确定删除知识 #"+id+"？"))return;fetch(API+"/kb/delete/"+id,{method:"DELETE"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"已删除",d.success?"ok":"err");if(d.success!==false)loadKb()}).catch(function(){toast("删除失败","err")})}
+function toggleKb(id){fetch(API+"/kb/toggle/"+id,{method:"POST"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"已切换",d.success?"ok":"err");if(d.success!==false)loadKb()}).catch(function(){toast("操作失败","err")})}
+
+// ==================== ALARM MANAGEMENT ====================
+function quickHighAlarm(){$("aStatus").value="UNHANDLED";$("aLevel").value="HIGH";$("aSearch").value="";loadAlarms()}
+function loadAlarms(){
+  var s=$("aStatus").value,l=$("aLevel").value,sw=$("aSearch").value.trim().toLowerCase();
+  fetch(API+"/alarm/list").then(function(r){return r.json()}).then(function(d){
+    var list=getList(d);var total=list.length,un=0,hi=0,hd=0;
+    list.forEach(function(a){var st=a.alarmStatus||"";if(st==="UNHANDLED"){un++;if((a.alarmLevel||"").toUpperCase()==="HIGH")hi++}if(st==="HANDLED"||st==="MISREPORT")hd++});
+    $("aTotal").textContent=total;$("aUnhandled").textContent=un;$("aHigh").textContent=hi;$("aHandled").textContent=hd;
+    var f=list.filter(function(a){if(s&&(a.alarmStatus||"")!==s)return false;if(l&&(a.alarmLevel||"").toUpperCase()!==l)return false;if(sw&&(a.deviceName+" "+a.deviceCode+" "+(a.alarmContent||"")).toLowerCase().indexOf(sw)===-1)return false;return true});
+    renderAlarms(f);
+  }).catch(function(){$("aTbody").innerHTML='<tr class="empty"><td colspan="9">告警数据加载失败，请检查后端服务</td></tr>';toast("告警加载失败","err")});
+}
+function renderAlarms(list){
+  $("aPagi").textContent="显示 "+list.length+" 条";
+  if(!list.length){$("aTbody").innerHTML='<tr class="empty"><td colspan="9">暂无告警记录</td></tr>';return}
+  var h="";for(var i=0;i<list.length;i++){var a=list[i];var st=a.alarmStatus||"",lv=(a.alarmLevel||"").toUpperCase();
+  var sb=st==="UNHANDLED"?'<span class="badge bg-red">未处理</span>':st==="HANDLED"?'<span class="badge bg-green">已处理</span>':'<span class="badge bg-orange">误报</span>';
+  var lb=lv==="HIGH"?'<span class="badge bg-red">高</span>':lv==="MEDIUM"?'<span class="badge bg-orange">中</span>':lv==="LOW"?'<span class="badge bg-blue">低</span>':esc(a.alarmLevel||"");
+  var btn=st==="UNHANDLED"?'<button class="btn btn-s btn-xs" onclick="handleAlarm('+a.id+')">标记已处理</button>':'<button class="btn btn-xs" disabled>已处理</button>';
+  h+='<tr'+(lv==="HIGH"&&st==="UNHANDLED"?' class="high-row"':'')+'><td>'+a.id+'</td><td>'+esc(a.deviceName)+'</td><td>'+esc(a.deviceCode)+'</td><td>'+esc(a.alarmType||"")+'</td><td>'+lb+'</td><td><div class="ellipsis">'+esc(a.alarmContent||"-")+'</div></td><td>'+sb+'</td><td style="white-space:nowrap">'+ft(a.alarmTime)+'</td><td>'+btn+' <button class="btn btn-o btn-xs" onclick="showAlarmDetail('+a.id+')">详情</button></td></tr>'}
+  $("aTbody").innerHTML=h;
+}
+function handleAlarm(id){if(!confirm("确定标记告警 #"+id+" 为已处理？"))return;if(window._alarmBusy)return;window._alarmBusy=true;fetch(API+"/alarm/"+id+"/handle",{method:"POST"}).then(function(r){return r.json()}).then(function(d){if(d.code===200){toast("告警已标记为已处理","ok");loadAlarms();loadDashboard()}else{toast(d.message||"处理失败","err")}}).catch(function(){toast("处理失败","err")}).finally(function(){window._alarmBusy=false})}
+function showAlarmDetail(id){
+  fetch(API+"/alarm/list").then(function(r){return r.json()}).then(function(d){var list=getList(d),a=null;for(var i=0;i<list.length;i++){if(list[i].id==id){a=list[i];break}}if(!a)return;
+  window._detAlarm=a;
+  var lv=a.alarmLevel||""; var lvUp=lv.toUpperCase();
+  var lvBadge=lvUp==="HIGH"?'<span class="badge bg-red">HIGH</span>':lvUp==="MEDIUM"?'<span class="badge bg-orange">MEDIUM</span>':lvUp==="LOW"?'<span class="badge bg-blue">LOW</span>':esc(lv||"-");
+  var st=a.alarmStatus||""; var stBadge=st==="UNHANDLED"?'<span class="badge bg-red">未处理</span>':st==="HANDLED"?'<span class="badge bg-green">已处理</span>':'<span class="badge bg-gray">'+esc(st)+'</span>';
+  var tm=ft(a.alarmTime||a.alarm_time||""); var ht=ft(a.handleTime||a.handledTime||a.handle_time||"");
+  var h='<div class="info-block"><div class="info-label">📋 基础信息</div><div class="info-grid"><div class="info-item"><div class="info-label">告警 ID</div><div class="info-value">'+a.id+'</div></div><div class="info-item"><div class="info-label">告警等级</div><div class="info-value">'+lvBadge+'</div></div><div class="info-item"><div class="info-label">告警状态</div><div class="info-value">'+stBadge+'</div></div><div class="info-item"><div class="info-label">告警时间</div><div class="info-value">'+tm+'</div></div></div></div>';
+  h+='<div class="info-block"><div class="info-label">📡 设备信息</div><div class="info-grid"><div class="info-item"><div class="info-label">设备名称</div><div class="info-value">'+esc(a.deviceName||a.device_name||"-")+'</div></div><div class="info-item"><div class="info-label">设备编号</div><div class="info-value">'+esc(a.deviceCode||a.device_code||"-")+'</div></div><div class="info-item"><div class="info-label">设备位置</div><div class="info-value">'+esc(a.location||"-")+'</div></div><div class="info-item"><div class="info-label">告警类型</div><div class="info-value">'+esc(a.alarmType||a.alarm_type||"-")+'</div></div></div></div>';
+  h+='<div class="info-block"><div class="info-label">📝 告警内容</div><div class="info-value" style="background:#f8fafc;padding:12px;border-radius:10px;line-height:1.7;white-space:pre-line;border:1px solid #f1f5f9">'+esc(a.alarmContent||a.alarm_content||"-")+'</div></div>';
+  h+='<div class="info-block"><div class="info-label">🔧 处理信息</div><div class="info-grid"><div class="info-item"><div class="info-label">处理状态</div><div class="info-value">'+stBadge+'</div></div><div class="info-item"><div class="info-label">处理时间</div><div class="info-value">'+(ht||"-")+'</div></div><div class="info-item"><div class="info-label">处理人</div><div class="info-value">'+esc(a.handleUser||a.handle_user||"-")+'</div></div></div></div>';
+  $("detTitle").textContent="告警详情 #"+id;$("detContent").innerHTML=h;
+  var btn=$("detHandleBtn");if(a.alarmStatus==="UNHANDLED"){btn.style.display="inline-block";btn.onclick=function(){handleAlarm(id);closeModal("detailModal")}}else{btn.style.display="none"}
+  var hb=$("detHelpBtn");if(hb)hb.style.display="inline-block";
+  var mb=$("detMsgBtn");if(mb)mb.style.display="inline-block";
+  var ab=$("detAiBtn");if(ab)ab.style.display="inline-block";
+  $("detailModal").classList.add("active");
+  }).catch(function(){toast("加载详情失败","err")});
+}
+function handleFromDetail(){if(window._detAlarm){handleAlarm(window._detAlarm.id);closeModal("detailModal")}}
+
+// ==================== CHAT HISTORY ====================
+function loadChatHistory(){
+  var cat=$("cCat").value,sw=$("cSearch").value.trim().toLowerCase();
+  fetch(API+"/chat-record/list").then(function(r){return r.json()}).then(function(d){
+    var list=getList(d);var total=list.length,today=new Date().toISOString().slice(0,10),tc=0,kb=0,um=0;
+    list.forEach(function(r){if((r.createdAt||"").indexOf(today)===0)tc++;var c=getCat(r);if(c==="知识库")kb++;if(c==="未匹配")um++;});
+    $("cTotal").textContent=total;$("cToday").textContent=tc;$("cKb").textContent=kb;$("cUnmatch").textContent=um;
+    var f=list.filter(function(r){if(cat&&getCat(r)!==cat)return false;if(sw&&(r.userMessage+" "+r.botAnswer).toLowerCase().indexOf(sw)===-1)return false;return true});
+    renderChatHistory(f);
+  }).catch(function(){$("cTbody").innerHTML='<tr class="empty"><td colspan="7">聊天记录加载失败，请检查后端</td></tr>';toast("聊天记录加载失败","err")});
+}
+function getCat(r){var c=r.category;if(c==="告警")return"告警查询";if(c)return c;var a=r.botAnswer||"",kid=r.matchedKnowledgeId;if(a.indexOf("告警")!==-1||a.indexOf("未处理")!==-1||a.indexOf("入侵")!==-1)return"告警查询";if(a.indexOf("设备状态")!==-1||a.indexOf("在线")!==-1||a.indexOf("布防")!==-1)return"设备状态";if(kid)return"知识库";return"未匹配"}
+function renderChatHistory(list){
+  $("cPagi").textContent="共 "+list.length+" 条";if(!list.length){$("cTbody").innerHTML='<tr class="empty"><td colspan="7">暂无聊天记录</td></tr>';return}
+  var h="",cb={知识库:"bg-blue",设备状态:"bg-green",告警查询:"bg-red",未匹配:"bg-gray"};
+  for(var i=0;i<list.length;i++){var r=list[i],c=getCat(r);h+='<tr><td>'+r.id+'</td><td><div class="ellipsis">'+esc(r.userMessage)+'</div></td><td><div class="ellipsis">'+esc(r.botAnswer)+'</div></td><td>'+(r.matchedKnowledgeId||"-")+'</td><td><span class="badge '+(cb[c]||"bg-gray")+'">'+c+'</span></td><td style="white-space:nowrap">'+ft(r.createdAt)+'</td><td><button class="btn btn-o btn-xs" onclick="showChatDetail('+r.id+')">详情</button></td></tr>'}
+  $("cTbody").innerHTML=h;
+}
+function showChatDetail(id){
+  fetch(API+"/chat-record/list").then(function(r){return r.json()}).then(function(d){var list=getList(d),a=null;for(var i=0;i<list.length;i++){if(list[i].id==id){a=list[i];break}}if(!a)return;
+  $("detTitle").textContent="聊天详情 #"+id;$("detHandleBtn").style.display="none";var hb=$("detHelpBtn");if(hb)hb.style.display="none";var mb=$("detMsgBtn");if(mb)mb.style.display="none";var ab=$("detAiBtn");if(ab)ab.style.display="none";
+  $("detContent").innerHTML='<div class="detail-row"><div class="di"><div class="dl">匹配知识ID</div><div class="dv">'+(a.matchedKnowledgeId||"无")+'</div></div><div class="di"><div class="dl">类型</div><div class="dv">'+getCat(a)+'</div></div></div><div class="di"><div class="dl">时间</div><div class="dv">'+ft(a.createdAt)+'</div></div><div class="di"><div class="dl">🙋 用户问题</div><div class="dv-blk">'+esc(a.userMessage)+'</div></div><div class="di"><div class="dl">🤖 系统回答</div><div class="dv-blk">'+esc(a.botAnswer)+'</div></div>';
+  $("detailModal").classList.add("active");
+  }).catch(function(){toast("加载详情失败","err")});
+}
+
+// ==================== MESSAGE CENTER ====================
+var msgUsers = [];
+var msgCurrentUserId = null;
+var msgCurrentBox = "inbox";
+var msgInboxList = [];
+var msgOutboxList = [];
+var msgSending = false;
+var msgRefreshTimer = null;
+
+// Field compatibility helpers
+function getUserName(u) {
+  return u.realName || u.real_name || u.nickname || u.username || ('用户' + u.id);
+}
+function getMsgSenderName(m) {
+  return m.senderName || m.sender_name || '-';
+}
+function getMsgReceiverName(m) {
+  return m.receiverName || m.receiver_name || '-';
+}
+function getMsgReadStatus(m) {
+  var rs = m.readStatus;
+  if (rs != null) return rs;
+  rs = m.read_status;
+  if (rs != null) return rs;
+  return 0;
+}
+function getMsgType(m) {
+  return m.messageType || m.message_type || 'NORMAL';
+}
+function getMsgTime(m) {
+  return m.createTime || m.create_time || '';
+}
+
+function loadMessages() {
+  fetch(API + "/users/list").then(function(r) { return r.json(); }).then(function(d) {
+    msgUsers = Array.isArray(d) ? d : (d && d.data ? d.data : []);
+    var h = '';
+    for (var i = 0; i < msgUsers.length; i++) {
+      var u = msgUsers[i];
+      h += '<option value="' + u.id + '">' + esc(getUserName(u)) + ' (' + (u.role || 'user') + ')</option>';
+    }
+    $("msgCurrentUser").innerHTML = h;
+    $("msgReceiver").innerHTML = '';
+    var saved = localStorage.getItem("security_current_user_id");
+    var found = false;
+    if (saved) {
+      for (var i = 0; i < msgUsers.length; i++) {
+        if (msgUsers[i].id == parseInt(saved)) { found = true; break; }
+      }
+    }
+    if (found) {
+      $("msgCurrentUser").value = saved;
+    } else if (msgUsers.length > 0) {
+      $("msgCurrentUser").value = msgUsers[0].id;
+    }
+    switchMsgUser();
+  }).catch(function() { toast("用户列表加载失败", "err"); });
+}
+
+function switchMsgUser() {
+  var vid = $("msgCurrentUser").value;
+  msgCurrentUserId = vid ? parseInt(vid) : null;
+  if (msgCurrentUserId) {
+    localStorage.setItem("security_current_user_id", msgCurrentUserId);
+    updateReceiverList();
+    showMsgTab(msgCurrentBox);
+    loadUnreadCount();
+    refreshHomeUnread();
+  } else {
+    if (msgUsers.length === 0) {
+      $("msgInboxTbody").innerHTML = '<tr class="empty"><td colspan="6">暂无系统用户，无法发送消息</td></tr>';
+      $("msgOutboxTbody").innerHTML = '<tr class="empty"><td colspan="5">暂无系统用户，无法发送消息</td></tr>';
+    } else {
+      $("msgInboxTbody").innerHTML = '<tr class="empty"><td colspan="6">请选择当前用户</td></tr>';
+      $("msgOutboxTbody").innerHTML = '<tr class="empty"><td colspan="5">请选择当前用户</td></tr>';
+    }
+    $("msgUnreadBadge").textContent = "0";
+    $("hUnread").textContent = "0";
+  }
+}
+
+function updateReceiverList() {
+  var h = '';
+  var hasOther = false;
+  for (var i = 0; i < msgUsers.length; i++) {
+    var u = msgUsers[i];
+    if (u.id != msgCurrentUserId) {
+      hasOther = true;
+      h += '<option value="' + u.id + '">' + esc(getUserName(u)) + ' (' + (u.role || 'user') + ')</option>';
+    }
+  }
+  $("msgReceiver").innerHTML = h || '<option value="">暂无其他可发送用户</option>';
+}
+
+function refreshMsgData() {
+  if (!msgCurrentUserId) return;
+  showMsgTab(msgCurrentBox);
+  loadUnreadCount();
+}
+
+function refreshHomeUnread() {
+  if (!msgCurrentUserId) { $("hUnread").textContent = "0"; return; }
+  fetch(API + "/messages/unread-count?userId=" + msgCurrentUserId).then(function(r) { return r.json(); }).then(function(d) {
+    var c = d.count != null ? d.count : 0;
+    $("hUnread").textContent = c;
+    if (c > 0) { $("hUnread").style.color = "#ea4335"; $("hUnread").style.fontWeight = "800"; }
+    else { $("hUnread").style.color = "#1a73e8"; $("hUnread").style.fontWeight = "700"; }
+  }).catch(function() { $("hUnread").textContent = "0"; });
+}
+
+function loadUnreadCount() {
+  if (!msgCurrentUserId) { $("msgUnreadBadge").textContent = "0"; $("hUnread").textContent = "0"; return; }
+  fetch(API + "/messages/unread-count?userId=" + msgCurrentUserId).then(function(r) { return r.json(); }).then(function(d) {
+    var c = d.count != null ? d.count : 0;
+    $("msgUnreadBadge").textContent = c;
+    $("hUnread").textContent = c;
+    if (c > 0) { $("hUnread").style.color = "#ea4335"; $("hUnread").style.fontWeight = "800"; }
+    else { $("hUnread").style.color = "#1a73e8"; $("hUnread").style.fontWeight = "700"; }
+  }).catch(function() { $("msgUnreadBadge").textContent = "0"; $("hUnread").textContent = "0"; });
+}
+
+function showMsgTab(tab) {
+  msgCurrentBox = tab;
+  $("msgInboxPanel").style.display = tab === "inbox" ? "block" : "none";
+  $("msgOutboxPanel").style.display = tab === "outbox" ? "block" : "none";
+  $("msgSendPanel").style.display = tab === "send" ? "block" : "none";
+  var btns = document.querySelectorAll("#msgTabInbox,#msgTabOutbox,#msgTabSend");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].style.background = "#fff";
+    btns[i].style.color = "#1a73e8";
+    btns[i].style.border = "1px solid #1a73e8";
+  }
+  if (tab === "inbox") { btns[0].style.background = "#1a73e8"; btns[0].style.color = "#fff"; }
+  if (tab === "outbox") { btns[1].style.background = "#1a73e8"; btns[1].style.color = "#fff"; }
+  if (tab === "send") { btns[2].style.background = "#1a73e8"; btns[2].style.color = "#fff"; }
+  // Disable status filter for outbox/send since only inbox has read/unread status
+  var sf = $("msgStatusFilter");
+  if (sf) { sf.disabled = (tab === "outbox" || tab === "send"); }
+  if (tab === "inbox") loadInbox();
+  if (tab === "outbox") loadOutbox();
+}
+
+function filterMsg(list) {
+  var sw = ($("msgSearch") ? $("msgSearch").value : "").trim().toLowerCase();
+  var sf = ($("msgStatusFilter") ? $("msgStatusFilter").value : "");
+  var tf = ($("msgTypeFilter") ? $("msgTypeFilter").value : "");
+  return list.filter(function(m) {
+    if (sw) {
+      var hay = (m.title || "") + " " + (m.content || "") + " " + getMsgSenderName(m) + " " + getMsgReceiverName(m);
+      if (hay.toLowerCase().indexOf(sw) === -1) return false;
+    }
+    // Status filter applies to inbox only
+    if (msgCurrentBox === "inbox") {
+      var rs = getMsgReadStatus(m);
+      if (sf === "unread" && rs !== 0) return false;
+      if (sf === "read" && rs !== 1) return false;
+    }
+    if (tf && getMsgType(m) !== tf) return false;
+    return true;
+  });
+}
+
+function loadInbox() {
+  if (!msgCurrentUserId) return;
+  fetch(API + "/messages/inbox?userId=" + msgCurrentUserId).then(function(r) { return r.json(); }).then(function(d) {
+    msgInboxList = d.data || [];
+    var list = filterMsg(msgInboxList);
+    if (!list.length) {
+      $("msgInboxTbody").innerHTML = '<tr class="empty"><td colspan="6">' + (msgInboxList.length ? "暂无匹配消息" : "暂无收到的消息") + '</td></tr>';
+      loadUnreadCount();
+      return;
+    }
+    var h = "";
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      var rs = getMsgReadStatus(m);
+      var sb = rs === 1 ? '<span class="badge bg-green">已读</span>' : '<span class="badge bg-red">未读</span>';
+      var rstyle = rs === 0 ? ' style="font-weight:600"' : "";
+      var mt=getMsgType(m);var mtBadge=mt==='ALARM'?'<span class="badge bg-red">ALARM</span>':mt==='HELP'?'<span class="badge bg-orange">HELP</span>':'<span class="badge bg-blue">NORMAL</span>';h += '<tr' + rstyle + '><td>' + sb + '</td><td>' + esc(getMsgSenderName(m)) + '</td><td>' + esc(m.title || '') + ' ' + mtBadge + '</td><td><div class="ellipsis">' + esc(m.content || '') + '</div></td><td style="white-space:nowrap">' + ft(getMsgTime(m)) + '</td><td><button class="btn btn-o btn-xs" onclick="showMsgDetail(' + m.id + ')">详情</button>' + (rs !== 1 ? ' <button class="btn btn-xs btn-s" onclick="markMsgRead(' + m.id + ')">已读</button>' : '') + ' <button class="btn btn-d btn-xs" onclick="deleteMsg(' + m.id + ')">删除</button></td></tr>';
+    }
+    $("msgInboxTbody").innerHTML = h;
+    loadUnreadCount();
+  }).catch(function() { $("msgInboxTbody").innerHTML = '<tr class="empty"><td colspan="6">收件箱加载失败</td></tr>'; });
+}
+
+function loadOutbox() {
+  if (!msgCurrentUserId) return;
+  fetch(API + "/messages/outbox?userId=" + msgCurrentUserId).then(function(r) { return r.json(); }).then(function(d) {
+    msgOutboxList = d.data || [];
+    var list = filterMsg(msgOutboxList);
+    if (!list.length) {
+      $("msgOutboxTbody").innerHTML = '<tr class="empty"><td colspan="5">' + (msgOutboxList.length ? "暂无匹配消息" : "暂无发出的消息") + '</td></tr>';
+      return;
+    }
+    var h = "";
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      var mt2=getMsgType(m);var mtBadge2=mt2==='ALARM'?'<span class="badge bg-red">ALARM</span>':mt2==='HELP'?'<span class="badge bg-orange">HELP</span>':'<span class="badge bg-blue">NORMAL</span>';h += '<tr><td>' + esc(getMsgReceiverName(m)) + '</td><td>' + esc(m.title || '') + ' ' + mtBadge2 + '</td><td><div class="ellipsis">' + esc(m.content || '') + '</div></td><td style="white-space:nowrap">' + ft(getMsgTime(m)) + '</td><td><button class="btn btn-o btn-xs" onclick="showMsgDetail(' + m.id + ')">详情</button> <button class="btn btn-d btn-xs" onclick="deleteMsg(' + m.id + ')">删除</button></td></tr>';
+    }
+    $("msgOutboxTbody").innerHTML = h;
+  }).catch(function() { $("msgOutboxTbody").innerHTML = '<tr class="empty"><td colspan="5">发件箱加载失败</td></tr>'; });
+}
+
+function sendMessageMsg() {
+  if (msgSending) return;
+  if (!msgCurrentUserId) { toast("请先选择当前用户", "err"); return; }
+  var rid = $("msgReceiver").value;
+  if (!rid || rid === "") { toast("请选择接收人", "err"); return; }
+  if (parseInt(rid) === msgCurrentUserId) { toast("不能给自己发送消息", "err"); return; }
+  var title = ($("msgTitle").value || "").trim();
+  var content = ($("msgContent").value || "").trim();
+  if (!title) { toast("标题不能为空", "err"); return; }
+  if (!content) { toast("内容不能为空", "err"); return; }
+  if (title.length > 100) { toast("标题不能超过100字", "err"); return; }
+
+  msgSending = true;
+  var btn = document.querySelector("#msgSendPanel .btn-p");
+  btn.disabled = true;
+  btn.textContent = "发送中...";
+
+  var msgType = window._msgType || "NORMAL";
+
+  fetch(API + "/messages/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      senderId: msgCurrentUserId,
+      receiverId: parseInt(rid),
+      title: title,
+      content: content,
+      messageType: msgType
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.code === 200) {
+      toast("消息发送成功", "ok");
+      $("msgTitle").value = "";
+      $("msgContent").value = "";
+      window._msgType = null;
+      loadOutbox();
+      loadUnreadCount();
+      refreshHomeUnread();
+      if (msgCurrentBox === "outbox") loadOutbox();
+    } else {
+      toast(d.message || "发送失败", "err");
+    }
+  }).catch(function() {
+    toast("消息发送失败，请稍后重试", "err");
+  }).finally(function() {
+    msgSending = false;
+    btn.disabled = false;
+    btn.textContent = "📨 发送";
+  });
+}
+
+function markMsgRead(id) {
+  fetch(API + "/messages/" + id + "/read", { method: "POST" }).then(function(r) { return r.json(); }).then(function(d) {
+    loadInbox();
+    loadUnreadCount();
+    refreshHomeUnread();
+  }).catch(function() { toast("操作失败", "err"); });
+}
+
+function deleteMsg(id) {
+  if (!confirm("确定删除这条消息吗？")) return;
+  fetch(API + "/messages/" + id + "/delete?userId=" + msgCurrentUserId, { method: "POST" }).then(function(r) { return r.json(); }).then(function(d) {
+    toast("已删除", "ok");
+    if (msgCurrentBox === "inbox") loadInbox();
+    else loadOutbox();
+    loadUnreadCount();
+    refreshHomeUnread();
+  }).catch(function() { toast("删除失败", "err"); });
+}
+
+function showMsgDetail(id) {
+  function found(list) {
+    for (var i = 0; i < list.length; i++) { if (list[i].id == id) return list[i]; }
+    return null;
+  }
+  // Check cached lists first
+  var m = found(msgInboxList);
+  if (m) {
+    showDetailModalInner(m);
+    if (getMsgReadStatus(m) !== 1) markMsgRead(id);
+    return;
+  }
+  m = found(msgOutboxList);
+  if (m) {
+    showDetailModalInner(m);
+    return;
+  }
+  // Fallback: fetch from server
+  fetch(API + "/messages/inbox?userId=" + msgCurrentUserId).then(function(r) { return r.json(); }).then(function(d1) {
+    msgInboxList = d1.data || [];
+    var m1 = found(msgInboxList);
+    if (m1) {
+      showDetailModalInner(m1);
+      if (getMsgReadStatus(m1) !== 1) markMsgRead(id);
+      return;
+    }
+    fetch(API + "/messages/outbox?userId=" + msgCurrentUserId).then(function(r) { return r.json(); }).then(function(d2) {
+      msgOutboxList = d2.data || [];
+      var m2 = found(msgOutboxList);
+      if (m2) showDetailModalInner(m2);
+    });
+  });
+}
+
+function showDetailModalInner(m) {
+  var mt = getMsgType(m);
+  var mtName = mt === "ALARM" ? "告警消息" : mt === "HELP" ? "求助消息" : "普通消息";
+  var rs = getMsgReadStatus(m);
+  $("detTitle").textContent = "消息详情 #" + m.id;
+  $("detHandleBtn").style.display = "none";
+  var hb = $("detHelpBtn"); if (hb) hb.style.display = "none";
+  var mb = $("detMsgBtn"); if (mb) mb.style.display = "none";
+  var ab = $("detAiBtn"); if (ab) ab.style.display = "none";
+  $("detContent").innerHTML =
+    '<div class="detail-row"><div class="di"><div class="dl">标题</div><div class="dv">' + esc(m.title || '') + '</div></div><div class="di"><div class="dl">类型</div><div class="dv">' + mtName + '</div></div></div>' +
+    '<div class="detail-row"><div class="di"><div class="dl">发件人</div><div class="dv">' + esc(getMsgSenderName(m)) + '</div></div><div class="di"><div class="dl">收件人</div><div class="dv">' + esc(getMsgReceiverName(m)) + '</div></div></div>' +
+    '<div class="di"><div class="dl">发送时间</div><div class="dv">' + ft(getMsgTime(m)) + '</div></div>' +
+    '<div class="di"><div class="dl">状态</div><div class="dv">' + (rs === 1 ? '<span class="badge bg-green">已读</span>' : '<span class="badge bg-red">未读</span>') + '</div></div>' +
+    '<div class="di"><div class="dl">内容</div><div class="dv-blk">' + esc(m.content || '') + '</div></div>';
+  $("detailModal").classList.add("active");
+}
+
+function openMsgWithContent(title, content, type) {
+  showSection("message");
+  setTimeout(function() {
+    $("msgTitle").value = title || "";
+    $("msgContent").value = content || "";
+    window._msgType = type || "NORMAL";
+    showMsgTab("send");
+    if (type === "HELP") {
+      toast("已带入消息中心，请选择接收人后发送", "info");
+    } else if (type === "ALARM") {
+      toast("已带入消息中心，请选择接收人后发送", "info");
+    }
+  }, 200);
+}
+
+function sendHelpAsMessage() {
+  var hv = $("helpPreview").value;
+  if (!hv || hv.indexOf("点击生成") === 0) {
+    toast("请先生成求助信息", "err");
+    return;
+  }
+  openMsgWithContent("智慧安防求助提醒", hv, "HELP");
+}
+
+// Set up alarm detail -> message button click handler
+setTimeout(function() {
+  var mb = $("detMsgBtn");
+  if (mb) {
+    mb.onclick = function() {
+      if (window._detAlarm) {
+        var a = window._detAlarm;
+        var msg = '【智慧安防告警提醒】\n系统检测到异常告警事件。\n\n设备名称：' + (a.deviceName || a.device_name || '-') +
+          '\n设备编号：' + (a.deviceCode || a.device_code || '-') +
+          '\n位置：' + (a.location || '-') +
+          '\n告警等级：' + (a.alarmLevel || a.alarm_level || '-') +
+          '\n告警内容：' + (a.alarmContent || a.alarm_content || '-') +
+          '\n告警时间：' + ft(a.alarmTime || a.alarm_time || '') +
+          '\n\n请及时查看并处理。';
+        closeModal('detailModal');
+        openMsgWithContent('智慧安防告警提醒', msg, 'ALARM');
+      }
+    };
+  }
+}, 300);
+
+// Override showAlarmDetail to ensure help/msg buttons are shown
+var _origShowAlarmDetail = showAlarmDetail;
+showAlarmDetail = function(id) {
+  _origShowAlarmDetail(id);
+  setTimeout(function() {
+    var hb = $("detHelpBtn"); if (hb) hb.style.display = "inline-block";
+    var mb = $("detMsgBtn"); if (mb) mb.style.display = "inline-block";
+    var ab = $("detAiBtn"); if (ab) ab.style.display = "inline-block";
+  }, 100);
+};
+// ==================== EMERGENCY HELP ====================
+var defaultContacts=[{name:"紧急联系人",phone:"13800000000",type:"家属"},{name:"小区保安",phone:"023-00000000",type:"保安"},{name:"物业中心",phone:"023-11111111",type:"物业"}];
+function getContacts(){try{var d=localStorage.getItem("security_emergency_contacts");return d?JSON.parse(d):defaultContacts.slice()}catch(e){return defaultContacts.slice()}}
+function saveContacts(list){localStorage.setItem("security_emergency_contacts",JSON.stringify(list))}
+function loadContacts(){renderContacts()}
+function renderContacts(){var list=getContacts();var h="";for(var i=0;i<list.length;i++){var c=list[i];h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eef1f6"><div><strong>'+esc(c.name)+'</strong> <span style="color:#8f9bb3">'+esc(c.type)+'</span><br><span style="font-size:12px">'+c.phone+'</span></div><div><button class="btn btn-o btn-xs" onclick="editContact('+i+')">编辑</button> <button class="btn btn-d btn-xs" onclick="deleteContact('+i+')">删除</button></div></div>'}
+$("contactList").innerHTML=h||'<div style="color:#8f9bb3;padding:20px;text-align:center">暂无联系人，点击新增添加</div>';}
+function openContactModal(idx){idx=idx!=null?idx:-1;$("contactEditIdx").value=idx;if(idx>=0){var c=getContacts()[idx];$("contactModalTitle").textContent="编辑联系人";$("contactName").value=c.name;$("contactPhone").value=c.phone;$("contactType").value=c.type}else{$("contactModalTitle").textContent="新增联系人";$("contactName").value=$("contactPhone").value="";$("contactType").value="家属"}
+$("contactModal").classList.add("active")}
+function saveContact(){var n=$("contactName").value.trim(),p=$("contactPhone").value.trim();if(!n||!p){toast("姓名和电话不能为空","err");return}var btn=$("contactSaveBtn");if(btn.disabled)return;btn.disabled=true;btn.textContent="保存中...";
+var list=getContacts(),idx=parseInt($("contactEditIdx").value);var obj={name:n,phone:p,type:$("contactType").value};if(idx>=0)list[idx]=obj;else list.push(obj);saveContacts(list);renderContacts();closeModal("contactModal");toast("联系人已保存","ok");btn.disabled=false;btn.textContent="保存"}
+function editContact(idx){openContactModal(idx)}
+function deleteContact(idx){if(!confirm("确定删除该联系人？"))return;var list=getContacts();list.splice(idx,1);saveContacts(list);renderContacts();toast("已删除","ok")}
+function generateHelpMsg(){var d=$("helpDevice").value.trim()||"未指定",l=$("helpLocation").value.trim()||"未指定",c=$("helpContent").value.trim()||"未指定",lv=$("helpLevel").value||"HIGH",t=new Date().toLocaleString("zh-CN");var msg="【智慧安防求助提醒】\n检测到异常安防事件，请及时关注。\n\n设备名称："+d+"\n设备位置："+l+"\n告警等级："+lv+"\n异常内容："+c+"\n发生时间："+t+"\n\n建议：\n请尽快确认现场情况。如无法及时处理，可联系家属、小区保安或物业人员协助查看。";$("helpPreview").value=msg;toast("求助信息已生成","ok")}
+function generateFromAlarm(){fetch(API+"/alarm/latest").then(function(r){return r.json()}).then(function(d){if(d&&d.hasAlarm&&d.data){var a=d.data;$("helpDevice").value=a.deviceName||"";$("helpLocation").value=a.location||"";$("helpContent").value=a.alarmContent||"";$("helpLevel").value=a.alarmLevel||"HIGH";generateHelpMsg();toast("已根据最新告警生成求助信息","ok")}else{toast("暂无可用告警记录","err")}}).catch(function(){toast("获取告警失败","err")})}
+function copyHelpMsg(){var t=$("helpPreview").value;if(!t||t.indexOf("点击生成")===0){toast("请先生成求助信息","err");return}if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){toast("已复制，可粘贴到短信或微信发送","ok")}).catch(function(){toast("复制失败，请手动复制","err")})}else{$("helpPreview").select();document.execCommand("copy");toast("已复制","ok")}}
+function generateHelpFromAlarm(a){$("helpDevice").value=a.deviceName||a.device_name||"";$("helpLocation").value=a.location||"";$("helpContent").value=a.alarmContent||a.alarm_content||"";$("helpLevel").value=(a.alarmLevel||a.alarm_level||"HIGH").toUpperCase();generateHelpMsg();closeModal("detailModal");showSection("help");toast("已根据告警生成求助信息","ok")}
+["kbModal","detailModal","contactModal"].forEach(function(id){$(id).addEventListener("click",function(e){if(e.target===this)closeModal(id)})});
+
+// ==================== INIT ====================
+initPage();
+
+// ==================== AI RISK JUDGE ====================
+function runAiJudge(){
+  var btn = $("aiJudgeBtn");
+  btn.disabled = true; btn.textContent = "研判中...";
+  var resultDiv = $("aiJudgeResult");
+  resultDiv.innerHTML = '<p style="color:#94a3b8;font-size:13px;padding:12px 0">⏳ AI 正在分析当前安防状态...</p>';
+
+  fetch(API + "/ai/judge", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({userId: msgCurrentUserId || 1})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if(d.code === 200 && d.data){
+      renderAiJudgeResult(d.data, "aiJudgeResult");
+    } else {
+      resultDiv.innerHTML = '<p style="color:#dc2626;font-size:13px;padding:12px 0">AI 研判失败，请稍后重试</p>';
+    }
+  }).catch(function(){
+    resultDiv.innerHTML = '<p style="color:#dc2626;font-size:13px;padding:12px 0">AI 研判失败，请稍后重试</p>';
+  }).finally(function(){
+    btn.disabled = false; btn.textContent = "🔍 立即研判";
+  });
+}
+
+function renderAiJudgeResult(data, targetId){
+  var levels = {LOW:"#16a34a", MEDIUM:"#f97316", HIGH:"#dc2626", CRITICAL:"#991b1b"};
+  var bgColors = {LOW:"#f0fdf4", MEDIUM:"#fff7ed", HIGH:"#fef2f2", CRITICAL:"#fef2f2"};
+  var levelNames = {LOW:"低风险", MEDIUM:"中风险", HIGH:"高风险", CRITICAL:"严重风险"};
+  var rl = data.riskLevel || "MEDIUM";
+  var color = levels[rl] || "#64748b";
+  var bg = bgColors[rl] || "#f8fafc";
+  var levelName = levelNames[rl] || rl;
+
+  var h = '<div style="border:2px solid ' + color + ';border-radius:14px;padding:18px;background:' + bg + '">';
+  h += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">';
+  h += '<span style="font-size:28px">🤖</span>';
+  h += '<span style="font-size:18px;font-weight:800;color:' + color + '">风险等级：' + levelName + '</span>';
+  h += '<span class="badge" style="background:' + color + ';color:#fff;font-size:11px">' + rl + '</span>';
+  if(data.source){ h += '<span class="badge bg-gray" style="font-size:10px">来源：' + esc(data.source) + '</span>'; }
+  h += '</div>';
+  h += '<div style="margin-bottom:10px"><strong style="color:#1e293b">📋 摘要：</strong><span style="color:#334155">' + esc(data.summary || "") + '</span></div>';
+  h += '<div style="margin-bottom:10px"><strong style="color:#1e293b">📝 原因：</strong><span style="color:#475569;font-size:12px">' + esc(data.reason || "") + '</span></div>';
+  if(data.suggestions && data.suggestions.length > 0){
+    h += '<div style="margin-top:12px"><strong style="color:#1e293b">💡 建议操作：</strong></div>';
+    h += '<ul style="margin:6px 0 0 18px;color:#475569;font-size:12px;line-height:1.8">';
+    for(var i = 0; i < data.suggestions.length; i++){
+      h += '<li>' + esc(data.suggestions[i]) + '</li>';
+    }
+    h += '</ul>';
+  }
+  if(data.needHumanConfirm){
+    h += '<div style="margin-top:14px;padding:10px 14px;background:#fff;border-radius:10px;border:1px solid #fecaca;color:#991b1b;font-size:12px;font-weight:600">⚠️ 此风险需要人工确认，请勿直接忽略</div>';
+  }
+  // Action buttons
+  if(rl !== 'LOW'){
+    h += '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">';
+    h += '<button class="btn btn-d btn-xs" onclick="showSection(\'alarm\')">🚨 查看告警</button>';
+    h += '<button class="btn btn-w btn-xs" onclick="showSection(\'help\')">🆘 紧急求助</button>';
+    h += '<button class="btn btn-o btn-xs" onclick="showSection(\'message\')">📬 消息中心</button>';
+    h += '</div>';
+  }
+  h += '</div>';
+  document.getElementById(targetId).innerHTML = h;
+}
+
+function analyzeAlarmWithAi(alarmId){
+  var ab = $("detAiBtn");
+  if(ab){ ab.disabled = true; ab.textContent = "分析中..."; }
+
+  fetch(API + "/ai/judge", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({alarmId: alarmId})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if(d.code === 200 && d.data){
+      showAiAlarmResult(d.data);
+    }
+  }).catch(function(){
+    toast("AI 分析失败", "err");
+  }).finally(function(){
+    if(ab){ ab.disabled = false; ab.textContent = "🤖 AI 分析此告警"; }
+  });
+}
+
+function showAiAlarmResult(data){
+  var rl = data.riskLevel || "MEDIUM";
+  var levels = {LOW:"#16a34a", MEDIUM:"#f97316", HIGH:"#dc2626", CRITICAL:"#991b1b"};
+  var color = levels[rl] || "#64748b";
+  var levelNames = {LOW:"低风险", MEDIUM:"中风险", HIGH:"高风险", CRITICAL:"严重风险"};
+
+  var h = '<div style="margin-top:16px;border:2px solid ' + color + ';border-radius:12px;padding:16px;background:#fff">';
+  h += '<div style="font-weight:700;color:#1e293b;margin-bottom:10px">🤖 AI 分析结果</div>';
+  h += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">';
+  h += '<span class="badge" style="background:' + color + ';color:#fff">' + (levelNames[rl] || rl) + '</span>';
+  h += '<span style="font-size:13px;font-weight:600;color:#1e293b">' + esc(data.summary || "") + '</span>';
+  h += '</div>';
+  h += '<div style="font-size:12px;color:#475569;margin-bottom:8px">' + esc(data.reason || "") + '</div>';
+  if(data.suggestions && data.suggestions.length > 0){
+    h += '<ul style="margin:4px 0 0 16px;color:#475569;font-size:11px;line-height:1.7">';
+    for(var i = 0; i < data.suggestions.length; i++){
+      h += '<li>' + esc(data.suggestions[i]) + '</li>';
+    }
+    h += '</ul>';
+  }
+  // Quick actions
+  h += '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">';
+  h += '<button class="btn btn-w btn-xs" onclick="if(window._detAlarm)generateHelpFromAlarm(window._detAlarm)">🆘 生成求助</button>';
+  h += '<button class="btn btn-o btn-xs" onclick="if(window._detAlarm){var a=window._detAlarm;closeModal(\'detailModal\');var c=a.alarmContent||\'\';openMsgWithContent(\'智慧安防告警提醒\',\'设备：\'+esc(a.deviceName||a.device_name||\'-\')+\'\\n位置：\'+esc(a.location||\'-\')+\'\\n内容：\'+esc(c||\'-\')+\'\\n等级：\'+esc(a.alarmLevel||\'-\')+\'\\n时间：\'+ft(a.alarmTime||\'\'),\'ALARM\')}">📬 发送消息</button>';
+  h += '</div>';
+  h += '</div>';
+
+  var contentDiv = $("detContent");
+  if(contentDiv){
+    contentDiv.innerHTML += h;
+    // Scroll modal to bottom to show the AI result
+    var modal = document.querySelector("#detailModal .modal");
+    if(modal){ modal.scrollTop = modal.scrollHeight; }
+  }
+}
+</script>
+</body>
+</html>

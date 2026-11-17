@@ -1,0 +1,54 @@
+USE dream25;
+
+-- 紧急联系人表
+CREATE TABLE IF NOT EXISTS emergency_contact (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    contact_user_id BIGINT NOT NULL COMMENT '紧急联系人用户ID',
+    contact_username VARCHAR(50) NOT NULL COMMENT '紧急联系人用户名',
+    contact_nickname VARCHAR(100) COMMENT '联系人备注/昵称',
+    status TINYINT DEFAULT 1 COMMENT '状态 1=有效 0=已删除',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_contact (user_id, contact_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='紧急联系人表';
+
+-- 为 face_person 表增加字段（如果表已存在）
+-- 注意：使用存储过程安全添加列
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS add_face_person_columns()
+BEGIN
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dream25' AND TABLE_NAME='face_person' AND COLUMN_NAME='image_path') THEN
+        ALTER TABLE face_person ADD COLUMN image_path VARCHAR(500) COMMENT '人脸图片路径';
+    END IF;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dream25' AND TABLE_NAME='face_person' AND COLUMN_NAME='register_source') THEN
+        ALTER TABLE face_person ADD COLUMN register_source VARCHAR(50) DEFAULT 'MANUAL' COMMENT '注册来源 CAMERA/UPLOAD/MANUAL';
+    END IF;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dream25' AND TABLE_NAME='face_person' AND COLUMN_NAME='created_by') THEN
+        ALTER TABLE face_person ADD COLUMN created_by VARCHAR(50) COMMENT '创建者用户名';
+    END IF;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dream25' AND TABLE_NAME='face_person' AND COLUMN_NAME='status') THEN
+        ALTER TABLE face_person ADD COLUMN status TINYINT DEFAULT 1 COMMENT '状态 1=有效 0=已删除';
+    END IF;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dream25' AND TABLE_NAME='face_person' AND COLUMN_NAME='updated_at') THEN
+        ALTER TABLE face_person ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+    END IF;
+END //
+DELIMITER ;
+CALL add_face_person_columns();
+DROP PROCEDURE IF EXISTS add_face_person_columns;
+
+-- 为 user_message 表增加消息类型支持
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS add_message_columns()
+BEGIN
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dream25' AND TABLE_NAME='user_message' AND COLUMN_NAME='is_emergency') THEN
+        ALTER TABLE user_message ADD COLUMN is_emergency TINYINT DEFAULT 0 COMMENT '是否紧急求助 1=是 0=否';
+    END IF;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='dream25' AND TABLE_NAME='user_message' AND COLUMN_NAME='updated_at') THEN
+        ALTER TABLE user_message ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+    END IF;
+END //
+DELIMITER ;
+CALL add_message_columns();
+DROP PROCEDURE IF EXISTS add_message_columns;

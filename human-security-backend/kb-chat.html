@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧安防 AI 智能助手</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                         "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f0fe 0%, #d4e4fc 50%, #e0eaf5 100%);
+            min-height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            padding: 20px;
+        }
+        .main-container {
+            width: 100%; max-width: 750px; background: #ffffff;
+            border-radius: 16px; box-shadow: 0 8px 40px rgba(0, 82, 155, 0.12);
+            display: flex; flex-direction: column; overflow: hidden;
+            height: 94vh; max-height: 850px;
+        }
+        /* ===== 顶部 ===== */
+        .header {
+            background: linear-gradient(135deg, #1a73e8, #1557b0);
+            color: #ffffff; padding: 16px 24px 14px; text-align: center; flex-shrink: 0;
+        }
+        .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; margin-bottom: 2px; }
+        .header .subtitle { font-size: 11px; opacity: 0.8; font-weight: 400; margin-bottom: 8px; }
+        .header .nav-links { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .header .nav-links a {
+            color: #ffffff; text-decoration: none; font-size: 11px;
+            padding: 4px 12px; border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 14px; transition: all 0.2s; white-space: nowrap;
+        }
+        .header .nav-links a:hover { background: rgba(255,255,255,0.15); }
+        .header .nav-links a.active { background: rgba(255,255,255,0.2); }
+        /* ===== 状态栏 ===== */
+        .status-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 20px; background: #f8fafd; border-bottom: 1px solid #e8edf4;
+            font-size: 11px; color: #5f6b7a; flex-shrink: 0;
+        }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: #c0c7d0;
+            display: inline-block; margin-right: 5px; transition: background 0.3s;
+        }
+        .status-dot.connected { background: #34a853; }
+        .status-dot.error    { background: #ea4335; }
+        .status-dot.loading  { background: #fbbc04; animation: pulse 0.8s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+        /* ===== 快捷问题 ===== */
+        .quick-questions {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 10px 20px; border-bottom: 1px solid #e8edf4; flex-shrink: 0;
+        }
+        .quick-btn {
+            background: #eef3fa; color: #1a73e8; border: 1px solid #d4e2fc;
+            padding: 5px 12px; border-radius: 16px; font-size: 12px;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .quick-btn:hover { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+        .quick-btn:active { transform: scale(0.96); }
+        /* ===== 聊天区 ===== */
+        .chat-window {
+            flex: 1; overflow-y: auto; padding: 16px 20px;
+            display: flex; flex-direction: column; gap: 14px; background: #f9fbfd;
+        }
+        .chat-window::-webkit-scrollbar { width: 5px; }
+        .chat-window::-webkit-scrollbar-track { background: transparent; }
+        .chat-window::-webkit-scrollbar-thumb { background: #cdd5e0; border-radius: 3px; }
+        .message { display: flex; flex-direction: column; max-width: 82%; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+        .message.user { align-self: flex-end; align-items: flex-end; }
+        .message.user .bubble {
+            background: #1a73e8; color: #fff; padding: 10px 16px;
+            border-radius: 16px 16px 4px 16px; font-size: 14px;
+            line-height: 1.6; word-break: break-word;
+        }
+        .message.bot { align-self: flex-start; align-items: flex-start; }
+        .message.bot .bubble {
+            background: #fff; color: #202124; padding: 10px 16px;
+            border-radius: 16px 16px 16px 4px; font-size: 14px;
+            line-height: 1.7; word-break: break-word; white-space: pre-line;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .message.bot .meta { font-size: 10px; color: #8f9bb3; margin-top: 4px; margin-left: 6px; }
+        .message.bot .meta span { margin-right: 10px; }
+        .message.bot .bubble.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .message-label { font-size: 10px; color: #8f9bb3; margin-bottom: 3px; margin-left: 6px; }
+        .message.user .message-label { margin-right: 6px; margin-left: 0; }
+        .typing-indicator { display: flex; gap: 3px; padding: 12px 16px; }
+        .typing-indicator span {
+            width: 6px; height: 6px; background: #8f9bb3;
+            border-radius: 50%; animation: bounce 1.2s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0);} 30%{transform:translateY(-5px);} }
+        /* ===== 统一输入区 ===== */
+        .input-section {
+            border-top: 1px solid #e8edf4; background: #ffffff; flex-shrink: 0;
+            padding: 10px 20px 12px;
+        }
+        .input-row {
+            display: flex; gap: 8px; align-items: center;
+        }
+        .input-row input {
+            flex: 1; padding: 10px 14px; border: 1px solid #dce3ee;
+            border-radius: 22px; font-size: 14px; outline: none; min-width: 0;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-row input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+        .input-row input::placeholder { color: #b0b8c4; }
+        .btn-icon {
+            width: 38px; height: 38px; border-radius: 50%; border: 1px solid #dce3ee;
+            background: #ffffff; color: #1a73e8; font-size: 18px; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .btn-icon:hover { background: #eef3fa; border-color: #1a73e8; }
+        .btn-icon:active { transform: scale(0.93); }
+        .btn-icon:disabled { background: #f5f5f5; color: #b0b8c4; border-color: #e8edf4; cursor: not-allowed; }
+        .btn-icon.listening { background: #ea4335; color: #fff; border-color: #ea4335; animation: pulse-bg 1.5s infinite; }
+        @keyframes pulse-bg { 0%,100%{box-shadow:0 0 0 0 rgba(234,67,53,0.4);} 50%{box-shadow:0 0 0 8px rgba(234,67,53,0);} }
+        .send-icon {
+            background: #1a73e8; color: #fff; border: none; width: 38px; height: 38px;
+            border-radius: 50%; font-size: 18px; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .send-icon:hover { background: #1557b0; box-shadow: 0 2px 8px rgba(26,115,232,0.3); }
+        .send-icon:active { transform: scale(0.93); }
+        .send-icon:disabled { background: #a8c7f0; cursor: not-allowed; box-shadow: none; }
+        /* ===== 语音状态 + 开关行 ===== */
+        .voice-info {
+            display: flex; align-items: center; gap: 12px; margin-top: 8px;
+            flex-wrap: wrap; font-size: 11px; color: #8f9bb3;
+        }
+        .voice-info .vs-text { flex: 1; min-width: 120px; }
+        .voice-info .vs-text.listening { color: #ea4335; font-weight: 500; }
+        .toggle-label {
+            display: inline-flex; align-items: center; gap: 3px;
+            cursor: pointer; user-select: none; white-space: nowrap;
+        }
+        .toggle-label input { cursor: pointer; margin: 0; }
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 500;
+            z-index: 200; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; white-space: nowrap;
+        }
+        .toast.show { opacity: 1; }
+        .toast-success { background: #e6f4ea; color: #137333; }
+        .toast-error { background: #fce8e6; color: #c5221f; }
+        .toast-info { background: #e8f0fe; color: #1557b0; }
+        @media (max-width: 600px) {
+            .main-container { height: 100vh; max-height: 100vh; border-radius: 0; }
+            .message { max-width: 90%; }
+            .quick-questions { padding: 8px 14px; gap: 5px; }
+            .quick-btn { font-size: 11px; padding: 4px 10px; }
+            .input-section { padding: 8px 12px 10px; }
+            .btn-icon { width: 34px; height: 34px; font-size: 16px; }
+            .send-icon { width: 34px; height: 34px; font-size: 16px; }
+            .voice-info { gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <!-- 顶部 -->
+    <div class="header">
+        <h1>🛡️ 智慧安防 AI 智能助手</h1>
+        <p class="subtitle">支持文字提问 · 语音交互 · 设备状态查询 · 告警查询 · 知识库问答</p>
+        <div class="nav-links">
+            <a href="index.html">🏠 首页</a>
+            <a href="kb-chat.html" class="active">💬 问答助手</a>
+            <a href="kb-manage.html">📋 知识库管理</a>
+            <a href="alarm-manage.html">🚨 告警管理</a>
+            <a href="chat-history.html">📝 聊天记录</a>
+        </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar" id="statusBar">
+        <span><span class="status-dot" id="statusDot"></span><span id="statusText">等待连接...</span></span>
+        <span><a href="#" onclick="clearChat()" style="color:#8f9bb3;text-decoration:none;font-size:11px;" title="仅清空页面显示，不删除数据库记录">🗑️ 清屏</a></span>
+    </div>
+
+    <!-- 快捷问题 -->
+    <div class="quick-questions" id="quickQuestions">
+        <button class="quick-btn" data-question="系统如何布防？">系统如何布防？</button>
+        <button class="quick-btn" data-question="当前设备是否在线？">📡 当前设备是否在线？</button>
+        <button class="quick-btn" data-question="最近有没有告警？">🚨 最近有没有告警？</button>
+        <button class="quick-btn" data-question="当前是否布防？">🔒 当前是否布防？</button>
+        <button class="quick-btn" data-question="发现陌生人怎么办？">👤 发现陌生人怎么办？</button>
+    </div>
+
+    <!-- 聊天区 -->
+    <div class="chat-window" id="chatWindow"></div>
+
+    <!-- 统一输入区 -->
+    <div class="input-section">
+        <div class="input-row">
+            <input type="text" id="messageInput" placeholder="输入问题，或点击 🎤 语音提问..." autocomplete="off" />
+            <button class="btn-icon" id="voiceBtn" onclick="startVoiceInput()" title="语音提问">🎤</button>
+            <button class="btn-icon" id="voiceStopBtn" onclick="stopVoiceInput()" title="停止" disabled>⏹</button>
+            <button class="btn-icon" id="speakBtn" onclick="speakLastAnswer()" title="播报最新回答">🔊</button>
+            <button class="send-icon" id="sendBtn" onclick="sendMessage()" title="发送">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+        <div class="voice-info">
+            <span class="vs-text" id="voiceStatus">语音功能已就绪</span>
+            <label class="toggle-label"><input type="checkbox" id="autoSpeakCheck" /> 自动播报</label>
+            <label class="toggle-label"><input type="checkbox" id="alarmAutoPollCheck" /> 自动告警播报</label>
+        </div>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+    var API_URL       = "http://localhost:8080/api/kb/chat";
+    var ALARM_POLL_URL = "http://localhost:8080/api/alarm/latest";
+    var DEFAULT_USER_ID = 1;
+
+    var chatWindow   = document.getElementById("chatWindow");
+    var messageInput = document.getElementById("messageInput");
+    var sendBtn      = document.getElementById("sendBtn");
+    var statusDot    = document.getElementById("statusDot");
+    var statusText   = document.getElementById("statusText");
+    var statusTime   = document.getElementById("statusTime");
+    var voiceStatus  = document.getElementById("voiceStatus");
+    var voiceBtn     = document.getElementById("voiceBtn");
+    var voiceStopBtn = document.getElementById("voiceStopBtn");
+    var speakBtn     = document.getElementById("speakBtn");
+    var autoSpeakCheck   = document.getElementById("autoSpeakCheck");
+    var alarmAutoPollCheck = document.getElementById("alarmAutoPollCheck");
+
+    // ==================== 聊天核心 ====================
+    function scrollToBottom() {
+        requestAnimationFrame(function() { chatWindow.scrollTop = chatWindow.scrollHeight; });
+    }
+    function escapeHtml(text) {
+        if (!text) return "";
+        var div = document.createElement("div");
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+    }
+    function updateStatus(state, text) {
+        statusDot.className = "status-dot " + state;
+        statusText.textContent = text;
+        var now = new Date();
+        statusTime.textContent = now.toLocaleTimeString("zh-CN", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    }
+    function showToast(msg, type) {
+        var el = document.getElementById("toast");
+        el.textContent = msg; el.className = "toast toast-" + (type || "info") + " show";
+        setTimeout(function() { el.className = "toast"; }, 2000);
+    }
+    function setLoading(loading) {
+        sendBtn.disabled = loading;
+        messageInput.disabled = loading;
+    }
+    function appendUserMessage(text) {
+        var div = document.createElement("div");
+        div.className = "message user";
+        div.innerHTML = '<div class="message-label">你</div><div class="bubble">' + escapeHtml(text) + '</div>';
+        chatWindow.appendChild(div);
+        scrollToBottom();
+    }
+    function appendBotMessage(text, knowledgeId, category) {
+        var div = document.createElement("div");
+        div.className = "message bot";
+        var html = '<div class="message-label">🤖 智能助手</div>';
+        html += '<div class="bubble">' + escapeHtml(text) + '</div>';
+        if (knowledgeId || category) {
+            html += '<div class="meta">';
+            if (category)    html += '<span>📂 分类：' + escapeHtml(category) + '</span>';
+            if (knowledgeId) html += '<span>🔗 知识ID：' + knowledgeId + '</span>';
+            html += '</div>';
+        }
+        div.innerHTML = html;
+        chatWindow.appendChild(div);
+        scrollToBottom();
+    }
+    function appendErrorMessage(text) {
+        var div = document.createElement("div");
+        div.className = "message bot";
+        div.innerHTML = '<div class="message-label">🤖 智能助手</div><div class="bubble error">' + escapeHtml(text) + '</div>';
+        chatWindow.appendChild(div);
+        scrollToBottom();
+    }
+    function appendTypingIndicator() {
+        var div = document.createElement("div");
+        div.className = "message bot";
+        div.id = "typingIndicator";
+        div.innerHTML = '<div class="message-label">🤖 智能助手 正在思考...</div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+        chatWindow.appendChild(div);
+        scrollToBottom();
+        return div;
+    }
+    function removeTypingIndicator(el) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+
+    window.clearChat = function() {
+        chatWindow.innerHTML = "";
+        var welcomeMsg = "聊天已清屏。你可以继续提问：\n• 输入文字提问或点击 🎤 语音提问\n• 查询设备状态、告警信息\n• 咨询布防、陌生人处理等安防知识";
+        appendBotMessage(welcomeMsg);
+        lastBotAnswer = welcomeMsg;
+        updateStatus("idle", "聊天已清屏");
+        showToast("聊天已清屏", "info");
+    };
+
+    window.sendMessage = function(prefilledQuestion) {
+        var message = (prefilledQuestion || messageInput.value).trim();
+        if (!message) {
+            messageInput.placeholder = "请输入问题";
+            messageInput.style.borderColor = "#ea4335";
+            showToast("请输入问题", "error");
+            setTimeout(function() {
+                messageInput.placeholder = "输入问题，或点击 🎤 语音提问...";
+                messageInput.style.borderColor = "";
+            }, 2000);
+            return;
+        }
+
+        appendUserMessage(message);
+        if (!prefilledQuestion) messageInput.value = "";
+
+        var typingMsg = appendTypingIndicator();
+        setLoading(true);
+        updateStatus("loading", "AI 思考中……");
+
+        fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: DEFAULT_USER_ID, message: message })
+        })
+        .then(function(res) {
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return res.json();
+        })
+        .then(function(data) {
+            removeTypingIndicator(typingMsg);
+            appendBotMessage(data.answer, data.matchedKnowledgeId, data.category);
+            lastBotAnswer = data.answer;
+            if (autoSpeakCheck && autoSpeakCheck.checked) { doSpeak(data.answer); }
+            updateStatus("connected", "查询完成");
+            showToast("", "success"); // hide any previous error
+        })
+        .catch(function(err) {
+            removeTypingIndicator(typingMsg);
+            appendErrorMessage("后端连接失败，请确认 Spring Boot 是否启动，端口 8080。");
+            updateStatus("error", "连接失败");
+            showToast("后端连接失败", "error");
+            console.error("API error:", err);
+        })
+        .finally(function() {
+            setLoading(false);
+            messageInput.focus();
+        });
+    };
+
+    // ==================== 语音功能 ====================
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null;
+    var isListening = false;
+    var lastBotAnswer = "";
+
+    // 兼容性检查
+    if (!('speechSynthesis' in window)) {
+        voiceStatus.textContent = "⚠️ 浏览器不支持语音播报";
+        speakBtn.disabled = true;
+        if (autoSpeakCheck) autoSpeakCheck.disabled = true;
+    }
+    if (!SpeechRecognition) {
+        voiceStatus.textContent = "⚠️ 浏览器不支持语音识别，请使用 Chrome 或 Edge";
+        voiceBtn.disabled = true;
+        voiceBtn.title = "浏览器不支持语音识别";
+    }
+
+    // 初始化语音识别
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = "zh-CN";
+        recognition.interimResults = false;
+        recognition.continuous = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = function() {
+            isListening = true;
+            voiceBtn.classList.add("listening");
+            voiceStopBtn.disabled = false;
+            voiceStatus.textContent = "正在听，请说话……";
+            voiceStatus.classList.add("listening");
+        };
+        recognition.onresult = function(event) {
+            var t = "";
+            for (var i = event.resultIndex; i < event.results.length; i++) t += event.results[i][0].transcript;
+            t = t.trim();
+            if (t) {
+                voiceStatus.textContent = "识别完成：" + t;
+                voiceStatus.classList.remove("listening");
+                sendMessage(t);
+            } else {
+                voiceStatus.textContent = "未识别到有效语音，请重试或直接输入文字";
+            }
+        };
+        recognition.onerror = function(event) {
+            if (event.error === "not-allowed") voiceStatus.textContent = "⚠️ 麦克风权限被拒绝";
+            else if (event.error === "no-speech") voiceStatus.textContent = "未检测到语音，请重试";
+            else if (event.error !== "aborted") voiceStatus.textContent = "识别出错: " + event.error;
+            resetVoiceState();
+        };
+        recognition.onend = function() { resetVoiceState(); };
+    }
+
+    function resetVoiceState() {
+        isListening = false;
+        voiceBtn.classList.remove("listening");
+        voiceStopBtn.disabled = true;
+        voiceStatus.classList.remove("listening");
+        if (voiceStatus.textContent.indexOf("⚠️") === -1 && voiceStatus.textContent.indexOf("识别完成") === -1) {
+            voiceStatus.textContent = "语音功能已就绪";
+        }
+    }
+
+    window.startVoiceInput = function() {
+        if (!recognition) {
+            voiceStatus.textContent = "⚠️ 浏览器不支持语音识别，请使用 Chrome 或 Edge，或直接输入文字。";
+            return;
+        }
+        if (isListening) return;
+        if ('speechSynthesis' in window) speechSynthesis.cancel();
+        try { recognition.start(); } catch(e) {
+            voiceStatus.textContent = "语音识别启动失败，请重试";
+            resetVoiceState();
+        }
+    };
+
+    window.stopVoiceInput = function() {
+        if (recognition && isListening) { recognition.abort(); resetVoiceState(); }
+        if ('speechSynthesis' in window) speechSynthesis.cancel();
+        if (voiceStatus.textContent.indexOf("⚠️") === -1) voiceStatus.textContent = "语音功能已就绪";
+    };
+
+    // ==================== 语音播报 ====================
+    function stripForSpeech(text) {
+        if (!text) return "";
+        var tmp = document.createElement("div");
+        tmp.innerHTML = text;
+        var plain = tmp.textContent || tmp.innerText || "";
+        plain = plain.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "");
+        plain = plain.replace(/\n{3,}/g, "\n\n").replace(/[ ]{2,}/g, " ");
+        return plain.trim();
+    }
+
+    function doSpeak(text) {
+        if (!('speechSynthesis' in window) || !text) return;
+        speechSynthesis.cancel();
+        var clean = stripForSpeech(text);
+        if (!clean) return;
+        var u = new SpeechSynthesisUtterance(clean);
+        u.lang = "zh-CN"; u.rate = 1.0; u.pitch = 1.0;
+        u.onend = function() {
+            if (voiceStatus.textContent === "正在播报回答……") voiceStatus.textContent = "语音功能已就绪";
+        };
+        u.onerror = function() { voiceStatus.textContent = "语音功能已就绪"; };
+        speechSynthesis.speak(u);
+    }
+
+    window.speakLastAnswer = function() {
+        if (lastBotAnswer) {
+            if (recognition && isListening) { recognition.abort(); resetVoiceState(); }
+            doSpeak(lastBotAnswer);
+            voiceStatus.textContent = "正在播报回答……";
+        } else {
+            voiceStatus.textContent = "暂无回答可播报，请先提问";
+        }
+    };
+
+    // ==================== 告警自动轮询 ====================
+    var alarmPollTimer = null;
+    var lastSpokenAlarmId = null;
+
+    function pollLatestAlarm() {
+        fetch(ALARM_POLL_URL)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.hasAlarm && data.data && data.data.id !== lastSpokenAlarmId) {
+                    lastSpokenAlarmId = data.data.id;
+                    var txt = data.speechText || "";
+                    if (txt && ('speechSynthesis' in window)) {
+                        speechSynthesis.cancel();
+                        var u = new SpeechSynthesisUtterance(txt);
+                        u.lang = "zh-CN"; u.rate = 1.0; u.pitch = 1.0;
+                        speechSynthesis.speak(u);
+                        voiceStatus.textContent = "🔔 自动播报最新告警中……";
+                    }
+                }
+                if (!data.hasAlarm) lastSpokenAlarmId = null;
+            })
+            .catch(function(err) { console.error("Alarm poll:", err); });
+    }
+
+    function startAlarmPoll() {
+        if (alarmPollTimer) return;
+        pollLatestAlarm();
+        alarmPollTimer = setInterval(pollLatestAlarm, 10000);
+    }
+    function stopAlarmPoll() {
+        if (alarmPollTimer) { clearInterval(alarmPollTimer); alarmPollTimer = null; }
+        lastSpokenAlarmId = null;
+    }
+
+    if (alarmAutoPollCheck) {
+        alarmAutoPollCheck.addEventListener("change", function() {
+            if (this.checked) { startAlarmPoll(); voiceStatus.textContent = "已开启告警自动播报（每10秒）"; }
+            else { stopAlarmPoll(); voiceStatus.textContent = "语音功能已就绪"; }
+        });
+    }
+
+    window.addEventListener("beforeunload", function() { stopAlarmPoll(); });
+
+    // ==================== 初始化 ====================
+    window.addEventListener("DOMContentLoaded", function() {
+        var welcomeMsg = "你好，我是智慧安防 AI 智能助手。\n\n你可以：\n• 输入文字提问或点击 🎤 语音提问\n• 查询设备状态、告警信息\n• 咨询布防、陌生人处理等安防知识\n• 开启自动播报，让系统朗读回答";
+        appendBotMessage(welcomeMsg);
+        lastBotAnswer = welcomeMsg;
+
+        document.querySelectorAll(".quick-btn").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                sendMessage(this.getAttribute("data-question"));
+            });
+        });
+
+        messageInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        });
+
+        updateStatus("idle", "系统已就绪，等待输入...");
+    });
+})();
+</script>
+</body>
+</html>

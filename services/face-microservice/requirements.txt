@@ -1,0 +1,30 @@
+# ============================================================
+# 人脸识别系统 — 依赖清单
+# ============================================================
+# 安装: pip install -r requirements.txt
+# ============================================================
+
+# PyTorch (CPU 版 — 如需 GPU 请参考 https://pytorch.org)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# 图像处理
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# Facenet-PyTorch (人脸检测 + 特征提取)
+# 方式1: 直接安装 PyPI 版
+facenet-pytorch>=2.5.0
+
+# 方式2: 如果方式1失败，手动安装本地版本:
+# pip install -e "../facenet-pytorch-master"
+
+# Web 框架与跨域
+flask-socketio>=5.5.0
+flask-cors>=4.0.0
+
+# ONNX Runtime (活体检测)
+onnxruntime>=1.15.0
+
+# 语音合成 (TTS) — sherpa-onnx VITS
+sherpa-onnx>=1.12.0

@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧安防 AI 智能体控制台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;background:linear-gradient(135deg,#e8f0fe 0%,#d4e4fc 50%,#e0eaf5 100%);min-height:100vh;padding:16px}
+.container{max-width:1100px;margin:0 auto}
+.header{background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;border-radius:14px 14px 0 0;padding:16px 24px 12px;text-align:center}
+.header h1{font-size:22px;font-weight:700;letter-spacing:1px;margin-bottom:2px}
+.header .sub{font-size:11px;opacity:.85}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;background:#1557b0;justify-content:center}
+.tabs button{padding:6px 16px;border:1px solid rgba(255,255,255,.35);border-radius:16px;background:0;color:#fff;font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.tabs button:hover,.tabs button.active{background:rgba(255,255,255,.2)}
+.main{background:#fff;border-radius:0 0 14px 14px;box-shadow:0 4px 24px rgba(0,82,155,.1);min-height:80vh}
+.section{display:none;padding:20px 24px}
+.section.active{display:block}
+/* cards */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:#f8fafd;border-radius:12px;padding:16px;text-align:center;border:1px solid #e8edf4}
+.stat-card .n{font-size:30px;font-weight:700;color:#1a73e8;line-height:1.2}
+.stat-card .l{font-size:12px;color:#5f6b7a;margin-top:4px}
+.stat-card.warn .n{color:#ea4335}
+.alert-box{border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;border:1px solid #e8edf4;border-left:4px solid #34a853;background:#fff}
+.alert-box.red{border-color:#fecaca;border-left-color:#ea4335;background:#fef7f7}
+.alert-box .ai{font-size:24px;flex-shrink:0}
+.alert-box .at{flex:1;font-size:13px;color:#202124;line-height:1.6;min-width:180px}
+.alert-box.red .at{color:#b91c1c}
+.entry-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:20px}
+.entry-card{background:#fff;border-radius:14px;padding:24px 20px;border:1px solid #e8edf4;box-shadow:0 2px 12px rgba(0,82,155,.05);transition:transform .2s,box-shadow .2s;cursor:pointer}
+.entry-card:hover{transform:translateY(-3px);box-shadow:0 6px 24px rgba(0,82,155,.12)}
+.entry-card .ci{font-size:32px;margin-bottom:8px}
+.entry-card h3{font-size:15px;font-weight:600;color:#202124;margin-bottom:4px}
+.entry-card p{font-size:12px;color:#5f6b7a;line-height:1.5}
+/* chat */
+.chat-box{height:55vh;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column;gap:12px;background:#f9fbfd;border-radius:10px;padding:14px;margin-bottom:12px}
+.chat-box::-webkit-scrollbar{width:5px}
+.chat-box::-webkit-scrollbar-thumb{background:#cdd5e0;border-radius:3px}
+.msg{display:flex;flex-direction:column;max-width:80%;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.user{align-self:flex-end;align-items:flex-end}
+.msg.user .b{background:#1a73e8;color:#fff;padding:8px 14px;border-radius:14px 14px 4px 14px;font-size:14px;line-height:1.5;word-break:break-word}
+.msg.bot{align-self:flex-start;align-items:flex-start}
+.msg.bot .b{background:#fff;color:#202124;padding:8px 14px;border-radius:14px 14px 14px 4px;font-size:14px;line-height:1.6;word-break:break-word;white-space:pre-line;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.msg.bot .m{font-size:10px;color:#8f9bb3;margin-top:3px;margin-left:4px}
+.msg .lbl{font-size:10px;color:#8f9bb3;margin-bottom:2px;margin-left:4px}
+.msg.user .lbl{margin-right:4px;margin-left:0}
+.typing{display:flex;gap:3px;padding:10px 14px}
+.typing span{width:6px;height:6px;background:#8f9bb3;border-radius:50%;animation:bounce 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.quick-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.quick-btn{background:#eef3fa;color:#1a73e8;border:1px solid #d4e2fc;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.quick-btn:hover{background:#1a73e8;color:#fff;border-color:#1a73e8}
+.chat-input-row{display:flex;gap:6px;align-items:center}
+.chat-input-row input{flex:1;padding:9px 12px;border:1px solid #dce3ee;border-radius:20px;font-size:13px;outline:0;min-width:0;transition:border-color .2s}
+.chat-input-row input:focus{border-color:#1a73e8;box-shadow:0 0 0 2px rgba(26,115,232,.1)}
+.voice-row{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;font-size:11px;color:#8f9bb3}
+.voice-row .vs{flex:1;min-width:100px}
+.tgl{display:inline-flex;align-items:center;gap:3px;cursor:pointer;user-select:none;white-space:nowrap;font-size:11px;color:#8f9bb3}
+.tgl input{cursor:pointer;margin:0}
+/* table */
+.toolbar{display:flex;justify-content:space-between;align-items:center;padding:0 0 12px;flex-wrap:wrap;gap:8px}
+.fg{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fg select,.fg input{padding:5px 10px;border:1px solid #dce3ee;border-radius:14px;font-size:12px;outline:0;background:#fff}
+.fg input{width:180px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
+thead th{background:#f8fafd;color:#5f6b7a;font-weight:600;padding:8px 6px;text-align:left;border-bottom:2px solid #e8edf4;white-space:nowrap}
+tbody td{padding:7px 6px;border-bottom:1px solid #eef1f6;vertical-align:middle;line-height:1.4}
+tbody tr:hover{background:#f9fbfd}
+tbody tr.high-row{background:#fef7f7}
+.ellipsis{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.empty td{text-align:center;color:#8f9bb3;padding:30px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;white-space:nowrap}
+.bg-green{background:#e6f4ea;color:#137333}
+.bg-red{background:#fce8e6;color:#c5221f}
+.bg-orange{background:#fef7e0;color:#b06000}
+.bg-blue{background:#e8f0fe;color:#1557b0}
+.bg-gray{background:#f1f3f4;color:#5f6b7a}
+/* buttons */
+.btn{padding:7px 16px;border:none;border-radius:18px;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap;text-decoration:none;display:inline-block}
+.btn:active{transform:scale(.96)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-p{background:#1a73e8;color:#fff}
+.btn-p:hover{background:#1557b0}
+.btn-o{background:#fff;color:#1a73e8;border:1px solid #1a73e8}
+.btn-o:hover{background:#eef3fa}
+.btn-s{background:#34a853;color:#fff}
+.btn-s:hover{background:#2d9249}
+.btn-d{background:#ea4335;color:#fff}
+.btn-d:hover{background:#d33426}
+.btn-xs{padding:4px 10px;font-size:11px}
+.ico-btn{width:34px;height:34px;border-radius:50%;border:1px solid #dce3ee;background:#fff;color:#1a73e8;font-size:16px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.ico-btn:hover{background:#eef3fa;border-color:#1a73e8}
+.ico-btn:active{transform:scale(.93)}
+.ico-btn:disabled{background:#f5f5f5;color:#b0b8c4;border-color:#e8edf4;cursor:not-allowed}
+.ico-btn.lst{background:#ea4335;color:#fff;border-color:#ea4335;animation:pulse-bg 1.5s infinite}
+.send-btn{background:#1a73e8;color:#fff;border:none;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.send-btn:hover{background:#1557b0;box-shadow:0 2px 6px rgba(26,115,232,.3)}
+.send-btn:disabled{background:#a8c7f0;cursor:not-allowed;box-shadow:none}
+@keyframes pulse-bg{0%,100%{box-shadow:0 0 0 0 rgba(234,67,53,.4)}50%{box-shadow:0 0 0 6px rgba(234,67,53,0)}}
+.pagi{text-align:center;padding:12px;font-size:12px;color:#5f6b7a}
+/* modal */
+.modal-over{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:100;justify-content:center;align-items:flex-start;padding-top:40px}
+.modal-over.active{display:flex}
+.modal{background:#fff;border-radius:14px;width:92%;max-width:600px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.15);padding:20px 24px}
+.modal h2{font-size:16px;font-weight:600;color:#202124;margin-bottom:14px}
+.fg2{margin-bottom:12px}
+.fg2 label{display:block;font-size:12px;color:#5f6b7a;font-weight:500;margin-bottom:3px}
+.fg2 input,.fg2 textarea,.fg2 select{width:100%;padding:8px 10px;border:1px solid #dce3ee;border-radius:8px;font-size:13px;font-family:inherit;outline:0}
+.fg2 textarea{resize:vertical;min-height:70px}
+.fg2 input:focus,.fg2 textarea:focus{border-color:#1a73e8}
+.detail-row{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.di{margin-bottom:10px}
+.di .dl{font-size:11px;color:#8f9bb3;margin-bottom:2px}
+.di .dv{font-size:13px;color:#202124;word-break:break-word}
+.di .dv-blk{background:#f8fafd;padding:10px 12px;border-radius:8px;line-height:1.6;white-space:pre-line}
+/* toast */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:8px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.toast-ok{background:#e6f4ea;color:#137333}
+.toast-err{background:#fce8e6;color:#c5221f}
+.toast-info{background:#e8f0fe;color:#1557b0}
+@media(max-width:768px){
+.stats-row{grid-template-columns:repeat(2,1fr)}
+.entry-grid{grid-template-columns:1fr}
+.modal{max-width:95vw}
+.chat-box{height:45vh}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>🛡️ 智慧安防 AI 智能体控制台</h1>
+<p class="sub">集成文字问答 · 语音交互 · 设备状态 · 告警管理 · 知识库维护 · 聊天记录</p>
+</div>
+<div class="tabs">
+<button class="active" onclick="showSection('home')">🏠 首页概览</button>
+<button onclick="showSection('chat')">💬 AI 问答助手</button>
+<button onclick="showSection('device')">📡 设备管理</button>
+<button onclick="showSection('knowledge')">📋 知识库管理</button>
+<button onclick="showSection('alarm')">🚨 告警管理</button>
+	<button onclick="showSection('help')">🆘 紧急求助</button>
+	<button onclick="showSection('message')">📬 消息中心</button>
+	<div class="toolbar"><div class="fg"><input type="text" id="msgSearch" placeholder="搜索标题、内容、发件人或收件人..." oninput="refreshMsgData()" style="width:240px" /><select id="msgStatusFilter" onchange="refreshMsgData()"><option value="">全部状态</option><option value="unread">未读</option><option value="read">已读</option></select><select id="msgTypeFilter" onchange="refreshMsgData()"><option value="">全部类型</option><option value="NORMAL">NORMAL</option><option value="ALARM">ALARM</option><option value="HELP">HELP</option></select></div><button class="btn btn-p" onclick="refreshMsgData()">🔄 刷新</button></div>
+<button onclick="showSection('history')">📝 聊天记录</button>
+</div>
+<div class="main">
+
+<!-- HOME -->
+<section id="sec-home" class="section active">
+<div class="stats-row">
+<div class="stat-card"><div class="n" id="hDevices">--</div><div class="l">📡 设备数量</div></div>
+<div class="stat-card warn"><div class="n" id="hAlarms">--</div><div class="l">⚠️ 未处理告警</div></div>
+<div class="stat-card"><div class="n" id="hKb">--</div><div class="l">📚 知识库条目</div></div>
+<div class="stat-card"><div class="n" id="hChats">--</div><div class="l">💬 今日问答</div></div>
+<div class="stat-card"><div class="n" id="hUnread" style="color:#ea4335">--</div><div class="l">📬 未读消息</div></div>
+</div>
+<div class="alert-box" id="alertBox">
+<div class="ai">✅</div><div class="at" id="alertMsg">正在查询...</div>
+</div>
+<div style="text-align:right;margin-bottom:16px"><button class="btn btn-p" onclick="loadDashboard()">🔄 刷新统计</button></div>
+
+<div class="alert-box" id="deviceAlertBox">
+<div class="ai">📡</div><div class="at" id="deviceAlertMsg">正在检查设备...</div>
+</div>
+<div class="entry-grid">
+<div class="entry-card" onclick="showSection('chat')"><div class="ci">💬</div><h3>AI 问答助手</h3><p>文字提问、语音交互、设备状态查询、告警查询和知识库问答，支持自动播报。</p></div>
+<div class="entry-card" onclick="showSection('knowledge')"><div class="ci">📋</div><h3>知识库管理</h3><p>新增、编辑、删除知识条目，启用或停用任意条目，关键词搜索。</p></div>
+<div class="entry-card" onclick="showSection('alarm')"><div class="ci">🚨</div><h3>告警管理</h3><p>查看全部告警记录，按状态等级筛选，查看详情，一键标记已处理。</p></div>
+<div class="entry-card" onclick="showSection('history')"><div class="ci">📝</div><h3>聊天记录</h3><p>查看历史问答记录，按分类和关键词搜索，分析用户常问问题。</p></div>
+<div class="entry-card" onclick="showSection('message')"><div class="ci">📬</div><h3>消息中心</h3><p>站内消息收发，查看收件箱和发件箱，给其他用户发送消息通知。</p></div>
+<div class="entry-card" onclick="showSection('help')"><div class="ci">🆘</div><h3>紧急求助</h3><p>一键生成求助信息，联系家属、保安或物业中心，复制短信快速发送。</p></div>
+</div>
+</section>
+
+<!-- CHAT -->
+<section id="sec-chat" class="section">
+<div class="quick-row">
+<button class="quick-btn" onclick="sendMsg('系统如何布防？')">系统如何布防？</button>
+<button class="quick-btn" onclick="sendMsg('当前设备是否在线？')">📡 当前设备是否在线？</button>
+<button class="quick-btn" onclick="sendMsg('当前是否布防？')">🔒 当前是否布防？</button>
+<button class="quick-btn" onclick="sendMsg('最近有没有告警？')">🚨 最近有没有告警？</button>
+<button class="quick-btn" onclick="sendMsg('发现陌生人怎么办？')">👤 发现陌生人怎么办？</button>
+</div>
+<div class="chat-box" id="chatBox"></div>
+<div class="chat-input-row">
+<input type="text" id="msgInput" placeholder="输入问题，或点击 🎤 语音提问..." autocomplete="off" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}" />
+<button class="ico-btn" id="voiceBtn" onclick="startVoice()" title="语音提问">🎤</button>
+<button class="ico-btn" id="stopBtn" onclick="stopVoice()" title="停止" disabled>⏹</button>
+<button class="ico-btn" id="speakBtn" onclick="speakLast()" title="播报最近回答">🔊</button>
+<button class="send-btn" id="sendBtn" onclick="sendMsg()"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+</div>
+<div class="voice-row">
+<span class="vs" id="voiceStatus">语音就绪</span>
+<label class="tgl"><input type="checkbox" id="autoSpeak"> 自动播报</label>
+<label class="tgl"><input type="checkbox" id="alarmPoll"> 自动告警播报</label>
+<button class="btn btn-o btn-xs" onclick="clearChat()">🗑️ 清屏</button>
+</div>
+</section>
+
+	<section id="sec-device" class="section">
+	<div class="toolbar">
+		<div class="fg"><input type="text" id="dSearch" placeholder="搜索设备名称、编号或位置..." oninput="filterDevices()" /></div>
+	<button class="btn btn-p" onclick="loadDevices()">🔄 刷新设备</button>
+	</div>
+	<div class="tbl-wrap"><table>
+	<thead><tr><th>设备名称</th><th>设备编号</th><th>类型</th><th>位置</th><th style="width:70px">在线</th><th style="width:80px">布防</th><th style="width:70px">电量</th><th>最后上报</th><th style="width:170px">操作</th></tr></thead>
+	<tbody id="dTbody"><tr class="empty"><td colspan="9">加载中...</td></tr></tbody>
+	</table></div>
+	</section>
+
+<!-- KNOWLEDGE -->
+<section id="sec-knowledge" class="section">
+<div class="toolbar">
+<div class="fg">
+<input type="text" id="kbSearch" placeholder="搜索问题、关键词..." onkeydown="if(event.key==='Enter')loadKb()" />
+</div>
+<button class="btn btn-p" onclick="openKbModal()">＋ 新增知识</button> <button class="btn btn-o" onclick="loadKb()">🔄 刷新</button>
+</div>
+<div class="stats-row" style="margin-bottom:10px"><div class="stat-card" style="padding:10px"><div class="n" style="font-size:24px" id="kbTotal">0</div><div class="l">知识条目</div></div></div>
+<div class="tbl-wrap"><table>
+<thead><tr><th style="width:45px">ID</th><th>问题</th><th>答案</th><th style="width:80px">分类</th><th style="width:60px">状态</th><th style="width:130px">操作</th></tr></thead>
+<tbody id="kbTbody"><tr class="empty"><td colspan="6">加载中...</td></tr></tbody>
+</table></div>
+<div class="pagi" id="kbPagi"></div>
+</section>
+
+<!-- ALARM -->
+<section id="sec-alarm" class="section">
+<div class="stats-row">
+<div class="stat-card"><div class="n" id="aTotal">0</div><div class="l">告警总数</div></div>
+<div class="stat-card warn"><div class="n" id="aUnhandled">0</div><div class="l">未处理</div></div>
+<div class="stat-card warn"><div class="n" id="aHigh">0</div><div class="l">高等级未处理</div></div>
+<div class="stat-card"><div class="n" id="aHandled">0</div><div class="l">已处理</div></div>
+</div>
+<div class="toolbar">
+<div class="fg">
+<select id="aStatus" onchange="loadAlarms()"><option value="">全部状态</option><option value="UNHANDLED">未处理</option><option value="HANDLED">已处理</option></select>
+<select id="aLevel" onchange="loadAlarms()"><option value="">全部等级</option><option value="HIGH">HIGH</option><option value="MEDIUM">MEDIUM</option><option value="LOW">LOW</option></select>
+<input type="text" id="aSearch" placeholder="搜索设备、内容..." oninput="loadAlarms()" />
+</div>
+<button class="btn btn-p" onclick="loadAlarms()">🔄 刷新</button> <button class="btn btn-d btn-xs" onclick="quickHighAlarm()">⚠️ 高危未处理</button>
+</div>
+<div class="tbl-wrap"><table>
+<thead><tr><th>ID</th><th>设备</th><th>编号</th><th>类型</th><th>等级</th><th>内容</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+<tbody id="aTbody"><tr class="empty"><td colspan="9">加载中...</td></tr></tbody>
+</table></div>
+<div class="pagi" id="aPagi"></div>
+</section>
+
+<!-- HISTORY -->
+t<section id="sec-help" class="section">	<div class="toolbar"><span style="font-size:14px;font-weight:600;color:#202124">🆘 紧急求助</span><span style="font-size:12px;color:#8f9bb7">生成求助信息，一键复制发送</span></div>	<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">	<div>	<div style="background:#f8fafd;border-radius:12px;padding:16px;border:1px solid #e8edf4;margin-bottom:14px">	<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:600;font-size:14px">📋 紧急联系人</span><button class="btn btn-p btn-xs" onclick="openContactModal()">＋ 新增</button></div>	<div id="contactList" style="font-size:13px;color:#5f6b7a">加载中...</div>	</div>	<div style="background:#f8fafd;border-radius:12px;padding:16px;border:1px solid #e8edf4;margin-bottom:14px">	<div style="font-weight:600;font-size:14px;margin-bottom:12px">📝 生成求助信息</div>	<div style="margin-bottom:8px"><input id="helpDevice" placeholder="设备名称" style="width:100%;padding:7px 10px;border:1px solid #dce3ee;border-radius:8px;font-size:13px;margin-bottom:6px" />	<input id="helpLocation" placeholder="位置" style="width:100%;padding:7px 10px;border:1px solid #dce3ee;border-radius:8px;font-size:13px;margin-bottom:6px" />	<input id="helpContent" placeholder="异常内容" style="width:100%;padding:7px 10px;border:1px solid #dce3ee;border-radius:8px;font-size:13px;margin-bottom:6px" />	<select id="helpLevel" style="width:100%;padding:7px 10px;border:1px solid #dce3ee;border-radius:8px;font-size:13px;margin-bottom:8px"><option value="HIGH">高</option><option value="MEDIUM">中</option><option value="LOW">低</option></select></div>	<button class="btn btn-p" onclick="generateHelpMsg()" style="margin-right:6px">生成求助信息</button>	<button class="btn btn-o" onclick="generateFromAlarm()">📡 使用最新告警生成</button>	</div>	</div>	<div>	<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e8edf4;min-height:250px">	<div style="font-weight:600;font-size:14px;margin-bottom:10px">📄 求助信息预览</div>	<textarea id="helpPreview" readonly style="width:100%;height:200px;border:1px solid #dce3ee;border-radius:8px;padding:12px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.6;white-space:pre-wrap;background:#fafbfd">点击生成求助信息或使用最新告警生成...</textarea>	<button class="btn btn-p" onclick="copyHelpMsg()" style="margin-top:8px">📋 复制求助信息</button>	</div>	</div>	</div>	</section>
+	<button class="btn btn-o" onclick="var hv=$('helpPreview').value;if(!hv||hv.indexOf('点击生成')===0){toast('请先生成求助信息','err')}else{openMsgWithContent('智慧安防求助提醒',hv,'HELP')}" style="margin-top:6px">📬 发送为站内消息</button>
+<section id="sec-history" class="section">
+	<section id="sec-message" class="section">
+	<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+	<span style="font-weight:600;font-size:14px">📬 消息中心</span>
+	<div class="toolbar"><div class="fg"><input type="text" id="msgSearch" placeholder="搜索标题、内容、发件人或收件人..." oninput="refreshMsgData()" style="width:240px" /><select id="msgStatusFilter" onchange="refreshMsgData()"><option value="">全部状态</option><option value="unread">未读</option><option value="read">已读</option></select><select id="msgTypeFilter" onchange="refreshMsgData()"><option value="">全部类型</option><option value="NORMAL">NORMAL</option><option value="ALARM">ALARM</option><option value="HELP">HELP</option></select></div><button class="btn btn-p" onclick="refreshMsgData()">🔄 刷新</button></div>
+	<div class="fg"><label>当前用户：</label><select id="msgCurrentUser" onchange="switchMsgUser()"><option value="">请选择</option></select> <span style="font-size:12px">未读：<strong id="msgUnreadBadge" style="color:#ea4335">0</strong></span></div>
+	</div>
+	<div style="display:flex;gap:8px;margin-bottom:12px">
+	<button class="btn" id="msgTabInbox" style="background:#1a73e8;color:#fff" onclick="showMsgTab('inbox')">📥 收件箱</button>
+	<button class="btn" id="msgTabOutbox" style="background:#fff;color:#1a73e8;border:1px solid #1a73e8" onclick="showMsgTab('outbox')">📤 发件箱</button>
+	<button class="btn" id="msgTabSend" style="background:#fff;color:#1a73e8;border:1px solid #1a73e8" onclick="showMsgTab('send')">✉️ 发送消息</button>
+	</div>
+	<div id="msgInboxPanel"><div class="tbl-wrap"><table><thead><tr><th>状态</th><th>发件人</th><th>标题</th><th>内容</th><th>时间</th><th>操作</th></tr></thead><tbody id="msgInboxTbody"><tr class="empty"><td colspan="6">请先选择当前用户</td></tr></tbody></table></div></div>
+	<div id="msgOutboxPanel" style="display:none"><div class="tbl-wrap"><table><thead><tr><th>收件人</th><th>标题</th><th>内容</th><th>时间</th><th>操作</th></tr></thead><tbody id="msgOutboxTbody"><tr class="empty"><td colspan="5">请先选择当前用户</td></tr></tbody></table></div></div>
+	<div id="msgSendPanel" style="display:none">
+	<div style="background:#f8fafd;border-radius:12px;padding:16px;border:1px solid #e8edf4;max-width:500px">
+	<div class="fg2"><label>接收人 *</label><select id="msgReceiver"></select></div>
+	<div class="fg2"><label>标题 *</label><input id="msgTitle" placeholder="消息标题" /></div>
+	<div class="fg2"><label>内容 *</label><textarea id="msgContent" rows="4" placeholder="输入消息内容..."></textarea></div>
+	<button class="btn btn-p" onclick="sendMessageMsg()">📨 发送</button>
+	</div></div>
+	</section>
+<div class="stats-row">
+<div class="stat-card"><div class="n" id="cTotal">0</div><div class="l">总聊天</div></div>
+<div class="stat-card"><div class="n" id="cToday">0</div><div class="l">今日</div></div>
+<div class="stat-card"><div class="n" id="cKb">0</div><div class="l">匹配知识库</div></div>
+<div class="stat-card"><div class="n" id="cUnmatch">0</div><div class="l">未匹配</div></div>
+</div>
+<div class="toolbar">
+<div class="fg">
+<select id="cCat" onchange="loadChatHistory()"><option value="">全部分类</option><option value="知识库">知识库</option><option value="设备状态">设备状态</option><option value="告警查询">告警查询</option><option value="未匹配">未匹配</option></select>
+<input type="text" id="cSearch" placeholder="搜索问题或回答..." onkeydown="if(event.key==='Enter')loadChatHistory()" />
+</div>
+<button class="btn btn-p" onclick="loadChatHistory()">🔄 刷新</button>
+</div>
+<div class="tbl-wrap"><table>
+<thead><tr><th>ID</th><th>用户问题</th><th>回答摘要</th><th>知识ID</th><th>类型</th><th>时间</th><th>操作</th></tr></thead>
+<tbody id="cTbody"><tr class="empty"><td colspan="7">加载中...</td></tr></tbody>
+</table></div>
+<div class="pagi" id="cPagi"></div>
+</section>
+
+</div><!-- .main -->
+</div><!-- .container -->
+
+<!-- KB MODAL -->
+<div class="modal-over" id="kbModal"><div class="modal">
+<h2 id="kbModalTitle">新增知识</h2>
+<input type="hidden" id="kbEditId" />
+<div class="fg2"><label>问题 *</label><input id="kbQ" placeholder="例如：系统如何布防？" /></div>
+<div class="fg2"><label>答案 *</label><textarea id="kbA" rows="3" placeholder="输入回答内容..."></textarea></div>
+<div class="fg2"><label>关键词</label><input id="kbKw" placeholder="逗号分隔，如：布防,安防" /></div>
+<div class="fg2"><label>分类</label><input id="kbCat" placeholder="如：布防、告警" /></div>
+<div class="fg2"><label>状态</label><select id="kbEn"><option value="1">启用</option><option value="0">停用</option></select></div>
+<div style="text-align:right;margin-top:14px">
+<button class="btn btn-o" onclick="closeKbModal()">取消</button>
+<button class="btn btn-p" id="kbSaveBtn" onclick="saveKb()">保存</button>
+</div>
+</div></div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-over" id="contactModal"><div class="modal"><h2 id="contactModalTitle">新增联系人</h2><input type="hidden" id="contactEditIdx" value="-1" /><div class="fg2"><label>姓名 *</label><input id="contactName" placeholder="如：家属联系人" /></div><div class="fg2"><label>电话 *</label><input id="contactPhone" placeholder="如：13800000000" /></div><div class="fg2"><label>类型</label><select id="contactType"><option value="家属">家属</option><option value="保安">保安</option><option value="物业">物业</option><option value="其他">其他</option></select></div><div style="text-align:right;margin-top:14px"><button class="btn btn-o" onclick="closeModal('contactModal')">取消</button><button class="btn btn-p" id="contactSaveBtn" onclick="saveContact()">保存</button></div></div></div>
+<div class="modal-over" id="detailModal"><div class="modal">
+<h2 id="detTitle">详情</h2>
+<div id="detContent"></div>
+<div style="text-align:right;margin-top:14px">
+<button class="btn btn-o" onclick="closeModal('detailModal')">关闭</button>
+<button class="btn btn-s" id="detHandleBtn" style="display:none" onclick="handleFromDetail()">标记已处理</button>
+<button class="btn btn-o btn-xs" id="detHelpBtn" style="display:none" onclick="if(window._detAlarm)generateHelpFromAlarm(window._detAlarm)">🆘 生成求助信息</button>
+<button class="btn btn-s btn-xs" id="detMsgBtn" style="display:none" onclick="if(window._detAlarm){var a=window._detAlarm;var c=a.alarmContent||'';openMsgWithContent('智慧安防告警提醒','设备：'+esc(a.deviceName)+'
+位置：'+esc(a.location||'-')+'
+内容：'+esc(c)+'
+等级：'+esc(a.alarmLevel||'-')+'
+时间：'+ft(a.alarmTime))}">📬 发送告警消息</button>
+</div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+console.log('JS LOADED OK');
+if(typeof showSection==='function')console.log('showSection OK');else console.error('showSection MISSING');
+try{var API="http://localhost:8080/api";
+
+// ==================== UTILS ====================
+function $(id){return document.getElementById(id)}
+function getList(r){return Array.isArray(r)?r:(r&&r.data?r.data:[])}
+function esc(t){if(!t)return"";var d=document.createElement("div");d.appendChild(document.createTextNode(""+t));return d.innerHTML}
+function ft(t){return t?(""+t).replace("T"," "):"-"}
+function toast(m,t){var e=$("toast");e.textContent=m;e.className="toast toast-"+(t||"info")+" show";setTimeout(function(){e.className="toast"},2000)}
+function closeModal(id){$(id).classList.remove("active")}
+
+function showSection(name){
+  document.querySelectorAll(".section").forEach(function(s){s.classList.remove("active")});
+  document.querySelectorAll(".tabs button").forEach(function(b){b.classList.remove("active")});
+  $("sec-"+name).classList.add("active");
+	  var idx={home:0,chat:1,device:2,knowledge:3,alarm:4,help:5,message:6,history:7}[name]||0;
+  var btns=document.querySelectorAll(".tabs button");if(btns[idx])btns[idx].classList.add("active");
+  if(name==="home")loadDashboard();
+  if(name==="device")loadDevices();
+  if(name==="knowledge")loadKb();
+  if(name==="alarm")loadAlarms();
+	  if(name==="help")loadContacts();
+	  if(name==="message")loadMessages();
+  if(name==="history")loadChatHistory();
+}
+
+// ==================== HOME DASHBOARD ====================
+var dashFail=false;
+function loadDashboard(){
+	  fetch(API+"/device/status").then(function(r){return r.json()}).then(function(d){var list=getList(d);$("hDevices").textContent=list.length;var off=list.filter(function(dv){return dv.online===0});var db=$("deviceAlertBox"),dm=$("deviceAlertMsg");if(off.length>0){db.className="alert-box red";var names=off.map(function(dv){return dv.deviceName}).join("、");dm.innerHTML="<strong>⚠️ 存在离线设备</strong><br>请检查设备电源或网络："+names}else{db.className="alert-box";dm.innerHTML="<strong>✅ 设备运行正常</strong><br>所有设备在线。"}}).catch(function(){$("hDevices").textContent="--";dashFail=true});
+  fetch(API+"/alarm/list").then(function(r){return r.json()}).then(function(d){var u=0;getList(d).forEach(function(a){if(a.alarmStatus==="UNHANDLED")u++});var el=$("hAlarms");el.textContent=u;if(u>0){el.style.color="#ea4335";el.style.fontWeight="800"}}).catch(function(){$("hAlarms").textContent="--";dashFail=true});
+  fetch(API+"/kb/list").then(function(r){return r.json()}).then(function(d){$("hKb").textContent=getList(d).length}).catch(function(){$("hKb").textContent="--";dashFail=true});
+  fetch(API+"/chat-record/list").then(function(r){return r.json()}).then(function(d){var t=new Date().toISOString().slice(0,10);var c=0;getList(d).forEach(function(r){if((r.createdAt||"").indexOf(t)===0)c++});$("hChats").textContent=c}).catch(function(){$("hChats").textContent="--";dashFail=true});
+  if(msgCurrentUserId){fetch(API+"/messages/unread-count?userId="+msgCurrentUserId).then(function(r){return r.json()}).then(function(d){$("hUnread").textContent=d.count||0}).catch(function(){$("hUnread").textContent="0"})}}
+  fetch(API+"/alarm/latest").then(function(r){return r.json()}).then(function(d){var b=$("alertBox"),m=$("alertMsg");if(d&&d.hasAlarm&&d.data){b.className="alert-box red";m.innerHTML="<strong>⚠️ 存在未处理告警</strong><br>"+esc(d.data.alarmContent||d.data.alarmMessage||"")+"<br><small>请及时查看处理。</small>"}else{b.className="alert-box";m.innerHTML="<strong>✅ 系统运行正常</strong><br>当前暂无未处理告警。"}}).catch(function(){$("alertMsg").textContent="无法获取告警状态";dashFail=true});
+  setTimeout(function(){if(dashFail){toast("统计数据加载失败","err");dashFail=false}},1500);
+}
+
+// ==================== AI CHAT ====================
+var lastAnswer="";
+var SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+var rec=null,listening=false;
+var alarmTimer=null,lastAlarmId=null;
+
+function scrollChat(){var c=$("chatBox");requestAnimationFrame(function(){c.scrollTop=c.scrollHeight})}
+function appendMsg(type,text,kid,cat,err){
+  var d=document.createElement("div");d.className="msg "+type;
+  var h='<div class="lbl">'+(type==="user"?"你":"🤖 智能助手")+'</div>';
+  h+='<div class="b'+(err?'" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca':'')+'">'+esc(text)+'</div>';
+  if(kid||cat){h+='<div class="m">';if(cat)h+='<span>📂 '+esc(cat)+'</span>';if(kid)h+='<span>🔗 ID:'+kid+'</span>';h+='</div>'}
+  d.innerHTML=h;$("chatBox").appendChild(d);scrollChat();return d;
+}
+function appendTyping(){
+  var d=document.createElement("div");d.className="msg bot";d.id="typing";
+  d.innerHTML='<div class="lbl">🤖 智能助手 思考中...</div><div class="b"><div class="typing"><span></span><span></span><span></span></div></div>';
+  $("chatBox").appendChild(d);scrollChat();return d;
+}
+function rmTyping(el){if(el&&el.parentNode)el.parentNode.removeChild(el)}
+function clearChat(){$("chatBox").innerHTML="";appendMsg("bot","聊天已清屏。继续提问吧：\n• 输入文字或点击 🎤 语音提问\n• 查询设备状态、告警信息\n• 咨询安防知识");lastAnswer="";toast("已清屏","info")}
+
+function sendMsg(prefill){
+  var msg=(prefill||$("msgInput").value).trim();if(!msg){toast("请输入问题","err");return}
+  appendMsg("user",msg);if(!prefill)$("msgInput").value="";
+  var t=appendTyping();$("sendBtn").disabled=$("msgInput").disabled=true;
+  fetch(API+"/kb/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:1,message:msg})})
+  .then(function(r){if(!r.ok)throw Error("HTTP "+r.status);return r.json()})
+  .then(function(d){rmTyping(t);appendMsg("bot",d.answer,d.matchedKnowledgeId,d.category);lastAnswer=d.answer;if($("autoSpeak").checked)doSpeak(d.answer)})
+  .catch(function(e){rmTyping(t);appendMsg("bot","后端连接失败，请确认 Spring Boot 是否启动。",null,null,true);toast("后端连接失败","err")})
+  .finally(function(){$("sendBtn").disabled=$("msgInput").disabled=false;$("msgInput").focus()});
+}
+
+// voice
+if(!("speechSynthesis" in window)){$("speakBtn").disabled=true;$("autoSpeak").disabled=true}
+if(!SpeechRecognition){$("voiceBtn").disabled=true;$("voiceStatus").textContent="⚠️ 浏览器不支持语音识别"}
+if(SpeechRecognition){rec=new SpeechRecognition();rec.lang="zh-CN";rec.interimResults=false;rec.continuous=false;rec.maxAlternatives=1;
+rec.onstart=function(){listening=true;$("voiceBtn").classList.add("lst");$("stopBtn").disabled=false;$("voiceStatus").textContent="正在听，请说话……"};
+rec.onresult=function(e){var t="";for(var i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;t=t.trim();if(t){$("voiceStatus").textContent="识别："+t;sendMsg(t)}else{$("voiceStatus").textContent="未识别到有效语音"}};
+rec.onerror=function(e){if(e.error==="not-allowed")$("voiceStatus").textContent="⚠️ 麦克风权限被拒绝";else if(e.error==="no-speech")$("voiceStatus").textContent="未检测到语音";else if(e.error!=="aborted")$("voiceStatus").textContent="出错:"+e.error;resetVoice()};
+rec.onend=function(){resetVoice()}}
+function resetVoice(){listening=false;$("voiceBtn").classList.remove("lst");$("stopBtn").disabled=true;$("voiceStatus").textContent="语音就绪"}
+function startVoice(){if(!rec){toast("浏览器不支持语音识别，请使用 Chrome 或 Edge","err");return}if(listening)return;if("speechSynthesis" in window)speechSynthesis.cancel();try{rec.start()}catch(e){$("voiceStatus").textContent="启动失败";resetVoice()}}
+function stopVoice(){if(rec&&listening){rec.abort();resetVoice()}if("speechSynthesis" in window)speechSynthesis.cancel()}
+
+function stripSpeech(t){if(!t)return"";var d=document.createElement("div");d.innerHTML=t;var p=d.textContent||"";p=p.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu,"");p=p.replace(/\n{3,}/g,"\n\n").replace(/[ ]{2,}/g," ");return p.trim()}
+function doSpeak(t){if(!("speechSynthesis" in window)||!t)return;speechSynthesis.cancel();var c=stripSpeech(t);if(!c)return;var u=new SpeechSynthesisUtterance(c);u.lang="zh-CN";u.rate=1;u.pitch=1;speechSynthesis.speak(u)}
+function speakLast(){if(lastAnswer){if(rec&&listening){rec.abort();resetVoice()}doSpeak(lastAnswer);$("voiceStatus").textContent="正在播报……"}else{$("voiceStatus").textContent="暂无回答"}}
+
+function pollAlarm(){fetch(API+"/alarm/latest").then(function(r){return r.json()}).then(function(d){if(d.hasAlarm&&d.data&&d.data.id!==lastAlarmId){lastAlarmId=d.data.id;var t=d.speechText||"";if(t&&("speechSynthesis" in window)){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang="zh-CN";u.rate=1;u.pitch=1;speechSynthesis.speak(u);$("voiceStatus").textContent="🔔 自动告警播报"}}if(!d.hasAlarm)lastAlarmId=null}).catch(function(){})}
+$("alarmPoll").addEventListener("change",function(){if(this.checked){pollAlarm();alarmTimer=setInterval(pollAlarm,10000);toast("已开启告警自动播报","info")}else{if(alarmTimer)clearInterval(alarmTimer);alarmTimer=null;lastAlarmId=null;toast("已关闭告警自动播报","info")}});
+window.addEventListener("beforeunload",function(){if(alarmTimer)clearInterval(alarmTimer)});
+
+// init chat welcome
+(function(){appendMsg("bot","你好！我是智慧安防 AI 智能助手。\n\n你可以：\n• 输入文字提问或点击 🎤 语音提问\n• 查询设备状态、告警信息\n• 咨询布防、陌生人处理等安防知识\n• 开启自动播报，让系统朗读回答");})();
+
+// ==================== DEVICE MANAGEMENT ====================
+var deviceList=[];
+function loadDevices(){
+  fetch(API+"/device/status").then(function(r){return r.json()}).then(function(d){
+    deviceList=getList(d);filterDevices();
+  }).catch(function(){deviceList=[];$("dTbody").innerHTML='<tr class="empty"><td colspan="9">设备数据加载失败</td></tr>';toast("设备数据加载失败","err")});
+}
+function filterDevices(){
+  var sw=($("dSearch")?$("dSearch").value:"").trim().toLowerCase();
+  var list=deviceList;
+  if(sw){list=list.filter(function(dv){return(dv.deviceName+" "+dv.deviceCode+" "+dv.location+" "+dv.deviceType).toLowerCase().indexOf(sw)!==-1})}
+  renderDevices(list);
+}
+function renderDevices(list){
+  if(!list.length){$("dTbody").innerHTML='<tr class="empty"><td colspan="9">'+(deviceList.length?"暂无匹配设备":"暂无设备数据")+'</td></tr>';return}
+  var h="";for(var i=0;i<list.length;i++){var dv=list[i];
+  var onBadge=dv.online==1?'<span class="badge bg-green">在线</span>':'<span class="badge bg-red">离线</span>';
+  var dfBadge=dv.defense==1?'<span class="badge bg-blue">已布防</span>':'<span class="badge bg-gray">已撤防</span>';
+  var bat=dv.battery!=null?dv.battery:null;var batHtml=bat!=null?(bat<20?'<span style="color:#ea4335;font-weight:600">'+bat+'%</span> <span class="badge bg-red">低电量</span>':bat+"%"):"-";
+  var rowStyle=(bat!=null&&bat<20)?' style="border-left:3px solid #ea4335;background:#fff8f8"':"";
+  var dfBtn=dv.defense==1?'<button class="btn btn-xs btn-o" disabled>已布防</button> <button class="btn btn-xs btn-s" onclick="defenseOff(\''+esc(dv.deviceCode)+'\')">撤防</button>':'<button class="btn btn-xs btn-p" onclick="defenseOn(\''+esc(dv.deviceCode)+'\')">布防</button> <button class="btn btn-xs btn-o" disabled>已撤防</button>';
+  h+='<tr'+rowStyle+'><td>'+esc(dv.deviceName)+'</td><td>'+esc(dv.deviceCode)+'</td><td>'+esc(dv.deviceType||"-")+'</td><td>'+esc(dv.location||"-")+'</td><td>'+onBadge+'</td><td>'+dfBadge+'</td><td>'+batHtml+'</td><td style="white-space:nowrap">'+ft(dv.lastReportTime)+'</td><td>'+dfBtn+'</td></tr>'}
+  $("dTbody").innerHTML=h;
+}
+function defenseOn(code){if(!confirm("确定对 "+code+" 执行布防？"))return;fetch(API+"/device/"+encodeURIComponent(code)+"/defense-on",{method:"POST"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"布防成功","ok");loadDevices()}).catch(function(){toast("布防失败","err")})}
+function defenseOff(code){if(!confirm("确定对 "+code+" 执行撤防？"))return;fetch(API+"/device/"+encodeURIComponent(code)+"/defense-off",{method:"POST"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"撤防成功","ok");loadDevices()}).catch(function(){toast("撤防失败","err")})}
+
+// ==================== KNOWLEDGE BASE ====================
+function loadKb(){
+  var kw=$("kbSearch").value.trim();var url=API+"/kb/list"+(kw?"?keyword="+encodeURIComponent(kw):"");
+  fetch(url).then(function(r){return r.json()}).then(function(d){renderKb(getList(d))}).catch(function(){toast("知识库加载失败","err");$("kbTbody").innerHTML='<tr class="empty"><td colspan="6">加载失败</td></tr>'});
+}
+function renderKb(list){
+  $("kbTotal").textContent=list.length;$("kbPagi").textContent="共 "+list.length+" 条";
+  if(!list.length){$("kbTbody").innerHTML='<tr class="empty"><td colspan="6">暂无知识条目，点击「+ 新增知识」添加</td></tr>';return}
+  var h="";for(var i=0;i<list.length;i++){var k=list[i];var sb=k.enabled==1?'<span class="badge bg-green">启用</span>':'<span class="badge bg-red">停用</span>';var tl=k.enabled==1?"停用":"启用";
+  h+='<tr><td>'+k.id+'</td><td><div class="ellipsis">'+esc(k.question)+'</div></td><td><div class="ellipsis">'+esc(k.answer)+'</div></td><td>'+esc(k.category||"")+'</td><td>'+sb+'</td><td><button class="btn btn-o btn-xs" onclick="editKb('+k.id+')">编辑</button> <button class="btn btn-xs '+(k.enabled==1?'btn-o':'btn-s')+'" onclick="toggleKb('+k.id+')">'+tl+'</button> <button class="btn btn-d btn-xs" onclick="deleteKb('+k.id+')">删除</button></td></tr>'}
+  $("kbTbody").innerHTML=h;
+}
+function openKbModal(){window._kbEdit=false;$("kbModalTitle").textContent="新增知识";$("kbEditId").value="";$("kbQ").value=$("kbA").value=$("kbKw").value=$("kbCat").value="";$("kbEn").value="1";$("kbSaveBtn").textContent="保存";$("kbModal").classList.add("active")}
+function closeKbModal(){$("kbModal").classList.remove("active")}
+function editKb(id){
+  fetch(API+"/kb/list").then(function(r){return r.json()}).then(function(d){var list=getList(d);
+    for(var i=0;i<list.length;i++){if(list[i].id==id){var k=list[i];window._kbEdit=true;$("kbModalTitle").textContent="编辑知识 #"+id;$("kbEditId").value=id;$("kbQ").value=k.question;$("kbA").value=k.answer;$("kbKw").value=k.keywords||"";$("kbCat").value=k.category||"";$("kbEn").value=k.enabled;$("kbSaveBtn").textContent="更新";$("kbModal").classList.add("active");return}}
+  }).catch(function(){toast("获取知识详情失败","err")});
+}
+function saveKb(){
+  var q=$("kbQ").value.trim(),a=$("kbA").value.trim();if(!q||!a){toast("问题和答案不能为空","err");return}
+  var body={question:q,answer:a,keywords:$("kbKw").value.trim(),category:$("kbCat").value.trim(),enabled:parseInt($("kbEn").value)};
+  var url,method;
+  if(window._kbEdit){body.id=parseInt($("kbEditId").value);url=API+"/kb/update";method="PUT"}else{url=API+"/kb/add";method="POST"}
+  var btn=$("kbSaveBtn");btn.disabled=true;btn.textContent="保存中...";
+  fetch(url,{method:method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+  .then(function(r){return r.json()}).then(function(d){if(d.success||d.code===200){toast(d.message||"操作成功","ok");closeKbModal();loadKb()}else{toast(d.message||"操作失败","err")}})
+  .catch(function(e){toast("保存失败","err")}).finally(function(){btn.disabled=false;btn.textContent="保存"});
+}
+function deleteKb(id){if(!confirm("确定删除知识 #"+id+"？"))return;fetch(API+"/kb/delete/"+id,{method:"DELETE"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"已删除",d.success?"ok":"err");if(d.success!==false)loadKb()}).catch(function(){toast("删除失败","err")})}
+function toggleKb(id){fetch(API+"/kb/toggle/"+id,{method:"POST"}).then(function(r){return r.json()}).then(function(d){toast(d.message||"已切换",d.success?"ok":"err");if(d.success!==false)loadKb()}).catch(function(){toast("操作失败","err")})}
+
+// ==================== ALARM MANAGEMENT ====================
+function quickHighAlarm(){$("aStatus").value="UNHANDLED";$("aLevel").value="HIGH";$("aSearch").value="";loadAlarms()}
+function loadAlarms(){
+  var s=$("aStatus").value,l=$("aLevel").value,sw=$("aSearch").value.trim().toLowerCase();
+  fetch(API+"/alarm/list").then(function(r){return r.json()}).then(function(d){
+    var list=getList(d);var total=list.length,un=0,hi=0,hd=0;
+    list.forEach(function(a){var st=a.alarmStatus||"";if(st==="UNHANDLED"){un++;if((a.alarmLevel||"").toUpperCase()==="HIGH")hi++}if(st==="HANDLED"||st==="MISREPORT")hd++});
+    $("aTotal").textContent=total;$("aUnhandled").textContent=un;$("aHigh").textContent=hi;$("aHandled").textContent=hd;
+    var f=list.filter(function(a){if(s&&(a.alarmStatus||"")!==s)return false;if(l&&(a.alarmLevel||"").toUpperCase()!==l)return false;if(sw&&(a.deviceName+" "+a.deviceCode+" "+(a.alarmContent||"")).toLowerCase().indexOf(sw)===-1)return false;return true});
+    renderAlarms(f);
+  }).catch(function(){$("aTbody").innerHTML='<tr class="empty"><td colspan="9">告警数据加载失败，请检查后端服务</td></tr>';toast("告警加载失败","err")});
+}
+function renderAlarms(list){
+  $("aPagi").textContent="显示 "+list.length+" 条";
+  if(!list.length){$("aTbody").innerHTML='<tr class="empty"><td colspan="9">暂无告警记录</td></tr>';return}
+  var h="";for(var i=0;i<list.length;i++){var a=list[i];var st=a.alarmStatus||"",lv=(a.alarmLevel||"").toUpperCase();
+  var sb=st==="UNHANDLED"?'<span class="badge bg-red">未处理</span>':st==="HANDLED"?'<span class="badge bg-green">已处理</span>':'<span class="badge bg-orange">误报</span>';
+  var lb=lv==="HIGH"?'<span class="badge bg-red">高</span>':lv==="MEDIUM"?'<span class="badge bg-orange">中</span>':lv==="LOW"?'<span class="badge bg-blue">低</span>':esc(a.alarmLevel||"");
+  var btn=st==="UNHANDLED"?'<button class="btn btn-s btn-xs" onclick="handleAlarm('+a.id+')">标记已处理</button>':'<button class="btn btn-xs" disabled>已处理</button>';
+  h+='<tr'+(lv==="HIGH"&&st==="UNHANDLED"?' class="high-row"':'')+'><td>'+a.id+'</td><td>'+esc(a.deviceName)+'</td><td>'+esc(a.deviceCode)+'</td><td>'+esc(a.alarmType||"")+'</td><td>'+lb+'</td><td><div class="ellipsis">'+esc(a.alarmContent||"-")+'</div></td><td>'+sb+'</td><td style="white-space:nowrap">'+ft(a.alarmTime)+'</td><td>'+btn+' <button class="btn btn-o btn-xs" onclick="showAlarmDetail('+a.id+')">详情</button></td></tr>'}
+  $("aTbody").innerHTML=h;
+}
+function handleAlarm(id){if(!confirm("确定标记告警 #"+id+" 为已处理？"))return;fetch(API+"/alarm/"+id+"/handle",{method:"POST"}).then(function(r){return r.json()}).then(function(d){if(d.code===200){toast("告警已处理","ok");loadAlarms()}else{toast(d.message||"处理失败","err")}}).catch(function(){toast("处理失败","err")})}
+function showAlarmDetail(id){
+  fetch(API+"/alarm/list").then(function(r){return r.json()}).then(function(d){var list=getList(d),a=null;for(var i=0;i<list.length;i++){if(list[i].id==id){a=list[i];break}}if(!a)return;
+  window._detAlarm=a;
+  var items=[["ID",a.id],["设备名称",esc(a.deviceName)],["设备编号",esc(a.deviceCode)],["位置",esc(a.location||"-")],["类型",esc(a.alarmType||"")],["等级",esc(a.alarmLevel||"")],["状态",a.alarmStatus==="UNHANDLED"?"未处理":a.alarmStatus==="HANDLED"?"已处理":"误报"],["时间",ft(a.alarmTime)],["处理时间",ft(a.handleTime||a.handledTime)],["处理人",esc(a.handleUser||"-")]];
+  var h='<div class="detail-row">';items.forEach(function(p){h+='<div class="di"><div class="dl">'+p[0]+'</div><div class="dv">'+p[1]+'</div></div>'});h+='</div><div class="di"><div class="dl">告警内容</div><div class="dv-blk">'+esc(a.alarmContent||"-")+'</div></div>';
+  $("detTitle").textContent="告警详情 #"+id;$("detContent").innerHTML=h;
+  var btn=$("detHandleBtn");if(a.alarmStatus==="UNHANDLED"){btn.style.display="inline-block";btn.onclick=function(){handleAlarm(id);closeModal("detailModal")}}else{btn.style.display="none"}
+          var hb2=$("detHelpBtn");if(hb2)hb2.style.display="inline-block";
+          var hb=$("detHelpBtn");if(hb)hb.style.display="inline-block";
+          var mb=$("detMsgBtn");if(mb)mb.style.display="inline-block";
+  $("detailModal").classList.add("active");
+  }).catch(function(){toast("加载详情失败","err")});
+}
+function handleFromDetail(){if(window._detAlarm){handleAlarm(window._detAlarm.id);closeModal("detailModal")}}
+
+// ==================== CHAT HISTORY ====================
+function loadChatHistory(){
+  var cat=$("cCat").value,sw=$("cSearch").value.trim().toLowerCase();
+  fetch(API+"/chat-record/list").then(function(r){return r.json()}).then(function(d){
+    var list=getList(d);var total=list.length,today=new Date().toISOString().slice(0,10),tc=0,kb=0,um=0;
+    list.forEach(function(r){if((r.createdAt||"").indexOf(today)===0)tc++;var c=getCat(r);if(c==="知识库")kb++;if(c==="未匹配")um++;});
+    $("cTotal").textContent=total;$("cToday").textContent=tc;$("cKb").textContent=kb;$("cUnmatch").textContent=um;
+    var f=list.filter(function(r){if(cat&&getCat(r)!==cat)return false;if(sw&&(r.userMessage+" "+r.botAnswer).toLowerCase().indexOf(sw)===-1)return false;return true});
+    renderChatHistory(f);
+  }).catch(function(){$("cTbody").innerHTML='<tr class="empty"><td colspan="7">聊天记录加载失败，请检查后端</td></tr>';toast("聊天记录加载失败","err")});
+}
+function getCat(r){var c=r.category;if(c==="告警")return"告警查询";if(c)return c;var a=r.botAnswer||"",kid=r.matchedKnowledgeId;if(a.indexOf("告警")!==-1||a.indexOf("未处理")!==-1||a.indexOf("入侵")!==-1)return"告警查询";if(a.indexOf("设备状态")!==-1||a.indexOf("在线")!==-1||a.indexOf("布防")!==-1)return"设备状态";if(kid)return"知识库";return"未匹配"}
+function renderChatHistory(list){
+  $("cPagi").textContent="共 "+list.length+" 条";if(!list.length){$("cTbody").innerHTML='<tr class="empty"><td colspan="7">暂无聊天记录</td></tr>';return}
+  var h="",cb={知识库:"bg-blue",设备状态:"bg-green",告警查询:"bg-red",未匹配:"bg-gray"};
+  for(var i=0;i<list.length;i++){var r=list[i],c=getCat(r);h+='<tr><td>'+r.id+'</td><td><div class="ellipsis">'+esc(r.userMessage)+'</div></td><td><div class="ellipsis">'+esc(r.botAnswer)+'</div></td><td>'+(r.matchedKnowledgeId||"-")+'</td><td><span class="badge '+(cb[c]||"bg-gray")+'">'+c+'</span></td><td style="white-space:nowrap">'+ft(r.createdAt)+'</td><td><button class="btn btn-o btn-xs" onclick="showChatDetail('+r.id+')">详情</button></td></tr>'}
+  $("cTbody").innerHTML=h;
+}
+function showChatDetail(id){
+  fetch(API+"/chat-record/list").then(function(r){return r.json()}).then(function(d){var list=getList(d),a=null;for(var i=0;i<list.length;i++){if(list[i].id==id){a=list[i];break}}if(!a)return;
+  $("detTitle").textContent="聊天详情 #"+id;$("detHandleBtn").style.display="none";
+  $("detContent").innerHTML='<div class="detail-row"><div class="di"><div class="dl">匹配知识ID</div><div class="dv">'+(a.matchedKnowledgeId||"无")+'</div></div><div class="di"><div class="dl">类型</div><div class="dv">'+getCat(a)+'</div></div></div><div class="di"><div class="dl">时间</div><div class="dv">'+ft(a.createdAt)+'</div></div><div class="di"><div class="dl">🙋 用户问题</div><div class="dv-blk">'+esc(a.userMessage)+'</div></div><div class="di"><div class="dl">🤖 系统回答</div><div class="dv-blk">'+esc(a.botAnswer)+'</div></div>';
+  $("detailModal").classList.add("active");
+  }).catch(function(){toast("加载详情失败","err")});
+}
+
+// ==================== MESSAGE CENTER ====================
+var msgUserList=[],msgCurrentUserId=null,msgTab="inbox";
+function loadMessages(){
+  fetch(API+"/users/list").then(function(r){return r.json()}).then(function(d){
+    msgUserList=d;var h="";for(var i=0;i<d.length;i++){var u=d[i];h+='<option value="'+u.id+'">'+esc(u.realName||u.nickname||u.username||('用户'+u.id))+' ('+(u.role||'user')+')</option>'}
+    $("msgCurrentUser").innerHTML=h;$("msgReceiver").innerHTML='';
+    var saved=localStorage.getItem("security_current_user_id");
+    var found=false;if(saved){for(var i=0;i<d.length;i++){if(d[i].id==parseInt(saved)){found=true;break}}}
+    if(found){$("msgCurrentUser").value=saved} else if(d.length>0){$("msgCurrentUser").value=d[0].id}
+    switchMsgUser();
+  }).catch(function(){toast("用户列表加载失败","err")});
+}
+function getUserName(u){return u.realName||u.nickname||u.username||('用户'+u.id)}
+function switchMsgUser(){
+  var vid=$("msgCurrentUser").value;msgCurrentUserId=vid?parseInt(vid):null;
+  if(msgCurrentUserId){localStorage.setItem("security_current_user_id",msgCurrentUserId);updateReceiverList();refreshMsgData();loadUnreadCount()}else{$("msgInboxTbody").innerHTML='<tr class="empty"><td colspan="6">请选择当前用户</td></tr>';$("msgOutboxTbody").innerHTML='<tr class="empty"><td colspan="5">请选择当前用户</td></tr>';$("msgUnreadBadge").textContent="0"}
+}
+function updateReceiverList(){
+  var h="";var hasOther=false;for(var i=0;i<msgUserList.length;i++){var u=msgUserList[i];if(u.id!=msgCurrentUserId){hasOther=true;h+='<option value="'+u.id+'">'+esc(getUserName(u))+' ('+(u.role||'user')+')</option>'}}
+  $("msgReceiver").innerHTML=h||'<option value="">暂无其他可发送用户</option>';
+}
+function refreshMsgData(){if(!msgCurrentUserId)return;showMsgTab(msgTab);loadUnreadCount()}
+function loadUnreadCount(){
+  if(!msgCurrentUserId){$("msgUnreadBadge").textContent="0";$("hUnread").textContent="0";return}
+  fetch(API+"/messages/unread-count?userId="+msgCurrentUserId).then(function(r){return r.json()}).then(function(d){$("msgUnreadBadge").textContent=d.count;$("hUnread").textContent=d.count}).catch(function(){$("hUnread").textContent="0"});
+}
+function showMsgTab(tab){
+  msgTab=tab;$("msgInboxPanel").style.display=tab==="inbox"?"block":"none";$("msgOutboxPanel").style.display=tab==="outbox"?"block":"none";$("msgSendPanel").style.display=tab==="send"?"block":"none";
+  var btns=document.querySelectorAll("#msgTabInbox,#msgTabOutbox,#msgTabSend");
+  for(var i=0;i<btns.length;i++){btns[i].style.background="#fff";btns[i].style.color="#1a73e8";btns[i].style.border="1px solid #1a73e8"}
+  if(tab==="inbox"){btns[0].style.background="#1a73e8";btns[0].style.color="#fff"}
+  if(tab==="outbox"){btns[1].style.background="#1a73e8";btns[1].style.color="#fff"}
+  if(tab==="send"){btns[2].style.background="#1a73e8";btns[2].style.color="#fff"}
+  if(tab==="inbox")loadInbox();if(tab==="outbox")loadOutbox();
+}
+function filterMsg(list){var sw=($("msgSearch")?$("msgSearch").value:"").trim().toLowerCase();var sf=$("msgStatusFilter")?$("msgStatusFilter").value:"";var tf=$("msgTypeFilter")?$("msgTypeFilter").value:"";return list.filter(function(m){if(sw&&(m.title+" "+m.content+" "+m.senderName+" "+m.receiverName).toLowerCase().indexOf(sw)===-1)return false;if(sf==="unread"&&m.readStatus!=0)return false;if(sf==="read"&&m.readStatus!=1)return false;if(tf&&m.messageType!=tf)return false;return true})}
+function loadInbox(){
+  if(!msgCurrentUserId)return;
+  fetch(API+"/messages/inbox?userId="+msgCurrentUserId).then(function(r){return r.json()}).then(function(d){
+    var list=filterMsg(d.data||[]);if(!list.length){$("msgInboxTbody").innerHTML='<tr class="empty"><td colspan="6">'+(d.data&&d.data.length?"暂无匹配消息":"暂无收到的消息")+'</td></tr>';loadUnreadCount();return}
+    var h="";for(var i=0;i<list.length;i++){var m=list[i];var sb=m.readStatus==1?'<span class="badge bg-green">已读</span>':'<span class="badge bg-red">未读</span>';var rstyle=m.readStatus==0?' style="font-weight:600"':"";
+    h+='<tr'+rstyle+'><td>'+sb+'</td><td>'+esc(m.senderName)+'</td><td>'+esc(m.title)+'</td><td><div class="ellipsis">'+esc(m.content)+'</div></td><td style="white-space:nowrap">'+ft(m.createTime)+'</td><td><button class="btn btn-o btn-xs" onclick="showMsgDetail('+m.id+')">详情</button>'+(m.readStatus!=1?' <button class="btn btn-xs btn-s" onclick="markMsgRead('+m.id+')">已读</button>':'')+' <button class="btn btn-d btn-xs" onclick="deleteMsg('+m.id+')">删除</button></td></tr>'}
+    $("msgInboxTbody").innerHTML=h;loadUnreadCount();
+  }).catch(function(){toast("收件箱加载失败","err")});
+}
+function loadOutbox(){
+  if(!msgCurrentUserId)return;
+  fetch(API+"/messages/outbox?userId="+msgCurrentUserId).then(function(r){return r.json()}).then(function(d){
+    var list=filterMsg(d.data||[]);if(!list.length){$("msgOutboxTbody").innerHTML='<tr class="empty"><td colspan="5">'+(d.data&&d.data.length?"暂无匹配消息":"暂无发出的消息")+'</td></tr>';return}
+    var h="";for(var i=0;i<list.length;i++){var m=list[i];h+='<tr><td>'+esc(m.receiverName)+'</td><td>'+esc(m.title)+'</td><td><div class="ellipsis">'+esc(m.content)+'</div></td><td style="white-space:nowrap">'+ft(m.createTime)+'</td><td><button class="btn btn-o btn-xs" onclick="showMsgDetail('+m.id+')">详情</button> <button class="btn btn-d btn-xs" onclick="deleteMsg('+m.id+')">删除</button></td></tr>'}
+    $("msgOutboxTbody").innerHTML=h;
+  }).catch(function(){toast("发件箱加载失败","err")});
+}
+function sendMessageMsg(){
+  if(!msgCurrentUserId){toast("请先选择当前用户","err");return}
+  var rid=$("msgReceiver").value;if(!rid||rid==""){toast("请选择接收人","err");return}
+  if(parseInt(rid)===msgCurrentUserId){toast("不能给自己发送消息","err");return}
+  var title=$("msgTitle").value.trim(),content=$("msgContent").value.trim();
+  if(!title){toast("标题不能为空","err");return}
+  if(!content){toast("内容不能为空","err");return}
+  if(title.length>100){toast("标题不能超过100字","err");return}
+  var btn=document.querySelector("#msgSendPanel .btn-p");btn.disabled=true;btn.textContent="发送中...";
+  fetch(API+"/messages/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({senderId:msgCurrentUserId,receiverId:parseInt(rid),title:title,content:content,messageType:"NORMAL"})})
+  .then(function(r){return r.json()}).then(function(d){if(d.code===200){toast("消息发送成功","ok");$("msgTitle").value=$("msgContent").value="";loadOutbox();loadUnreadCount()}else{toast(d.message||"发送失败","err")}}).catch(function(){toast("消息发送失败，请稍后重试","err")}).finally(function(){btn.disabled=false;btn.textContent="📨 发送"});
+}
+function markMsgRead(id){fetch(API+"/messages/"+id+"/read",{method:"POST"}).then(function(r){return r.json()}).then(function(d){loadInbox();loadUnreadCount()}).catch(function(){toast("操作失败","err")})}
+function deleteMsg(id){if(!confirm("确定删除这条消息吗？"))return;fetch(API+"/messages/"+id+"/delete?userId="+msgCurrentUserId,{method:"POST"}).then(function(r){return r.json()}).then(function(d){toast("已删除","ok");refreshMsgData();loadUnreadCount()}).catch(function(){toast("删除失败","err")})}
+function showMsgDetail(id){
+  var found=function(list){for(var i=0;i<list.length;i++){if(list[i].id==id)return list[i]}return null}
+  fetch(API+"/messages/inbox?userId="+msgCurrentUserId).then(function(r){return r.json()}).then(function(d1){
+    var m=found(d1.data||[]);if(m){showDetailModalInner(m);if(m.readStatus!=1)markMsgRead(id);return}
+    fetch(API+"/messages/outbox?userId="+msgCurrentUserId).then(function(r){return r.json()}).then(function(d2){var m2=found(d2.data||[]);if(m2)showDetailModalInner(m2)})
+  });
+}
+function showDetailModalInner(m){
+  var mt=m.messageType||"NORMAL";var mtName=mt==="ALARM"?"告警消息":mt==="HELP"?"求助消息":"普通消息";
+  $("detTitle").textContent="消息详情 #"+m.id;$("detHandleBtn").style.display="none";
+  $("detContent").innerHTML='<div class="detail-row"><div class="di"><div class="dl">标题</div><div class="dv">'+esc(m.title)+'</div></div><div class="di"><div class="dl">类型</div><div class="dv">'+mtName+'</div></div></div><div class="detail-row"><div class="di"><div class="dl">发件人</div><div class="dv">'+esc(m.senderName)+'</div></div><div class="di"><div class="dl">收件人</div><div class="dv">'+esc(m.receiverName)+'</div></div></div><div class="di"><div class="dl">发送时间</div><div class="dv">'+ft(m.createTime)+'</div></div><div class="di"><div class="dl">状态</div><div class="dv">'+(m.readStatus==1?'<span class="badge bg-green">已读</span>':'<span class="badge bg-red">未读</span>')+'</div></div><div class="di"><div class="dl">内容</div><div class="dv-blk">'+esc(m.content)+'</div></div>';
+  $("detailModal").classList.add("active");
+}
+function openMsgWithContent(title,content,type){
+  showSection("message");setTimeout(function(){
+    $("msgTitle").value=title||"";$("msgContent").value=content||"";showMsgTab("send");
+    if(type)window._msgType=type;
+  },200);
+}
+var origShowAlarmDetail2=showAlarmDetail;
+showAlarmDetail=function(id){
+  origShowAlarmDetail2(id);
+  setTimeout(function(){var hb=$("detHelpBtn");if(hb)hb.style.display="inline-block";var mb=$("detMsgBtn");if(mb)mb.style.display="inline-block"},100);
+};
+// ==================== EMERGENCY HELP ====================
+var defaultContacts=[{name:"紧急联系人",phone:"13800000000",type:"家属"},{name:"小区保安",phone:"023-00000000",type:"保安"},{name:"物业中心",phone:"023-11111111",type:"物业"}];
+function getContacts(){try{var d=localStorage.getItem("security_emergency_contacts");return d?JSON.parse(d):defaultContacts.slice()}catch(e){return defaultContacts.slice()}}
+function saveContacts(list){localStorage.setItem("security_emergency_contacts",JSON.stringify(list))}
+function loadContacts(){renderContacts()}
+function renderContacts(){var list=getContacts();var h="";for(var i=0;i<list.length;i++){var c=list[i];h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eef1f6"><div><strong>'+esc(c.name)+'</strong> <span style="color:#8f9bb3">'+esc(c.type)+'</span><br><span style="font-size:12px">'+c.phone+'</span></div><div><button class="btn btn-o btn-xs" onclick="editContact('+i+')">编辑</button> <button class="btn btn-d btn-xs" onclick="deleteContact('+i+')">删除</button></div></div>'}
+$("contactList").innerHTML=h||'<div style="color:#8f9bb3;padding:20px;text-align:center">暂无联系人，点击新增添加</div>';}
+function openContactModal(idx){idx=idx!=null?idx:-1;$("contactEditIdx").value=idx;if(idx>=0){var c=getContacts()[idx];$("contactModalTitle").textContent="编辑联系人";$("contactName").value=c.name;$("contactPhone").value=c.phone;$("contactType").value=c.type}else{$("contactModalTitle").textContent="新增联系人";$("contactName").value=$("contactPhone").value="";$("contactType").value="家属"}
+$("contactModal").classList.add("active")}
+function saveContact(){var n=$("contactName").value.trim(),p=$("contactPhone").value.trim();if(!n||!p){toast("姓名和电话不能为空","err");return}
+var list=getContacts(),idx=parseInt($("contactEditIdx").value);var obj={name:n,phone:p,type:$("contactType").value};if(idx>=0)list[idx]=obj;else list.push(obj);saveContacts(list);renderContacts();closeModal("contactModal");toast("联系人已保存","ok")}
+function editContact(idx){openContactModal(idx)}
+function deleteContact(idx){if(!confirm("确定删除该联系人？"))return;var list=getContacts();list.splice(idx,1);saveContacts(list);renderContacts();toast("已删除","ok")}
+function generateHelpMsg(){var d=$("helpDevice").value.trim()||"未指定",l=$("helpLocation").value.trim()||"未指定",c=$("helpContent").value.trim()||"未指定",lv=$("helpLevel").value,t=new Date().toLocaleString("zh-CN");var msg="【智慧安防提醒】\n检测到异常情况，请及时关注。\n\n设备："+d+"\n位置："+l+"\n告警内容："+c+"\n告警等级："+lv+"\n时间："+t+"\n\n建议：\n请尽快确认现场情况。如无法及时处理，可联系家属、小区保安或物业人员协助查看。";$("helpPreview").value=msg;toast("求助信息已生成","ok")}
+function generateFromAlarm(){fetch(API+"/alarm/latest").then(function(r){return r.json()}).then(function(d){if(d&&d.hasAlarm&&d.data){var a=d.data;$("helpDevice").value=a.deviceName||"";$("helpLocation").value=a.location||"";$("helpContent").value=a.alarmContent||"";$("helpLevel").value=a.alarmLevel||"HIGH";generateHelpMsg();toast("已根据最新告警生成求助信息","ok")}else{toast("暂无可用告警记录","err")}}).catch(function(){toast("获取告警失败","err")})}
+function copyHelpMsg(){var t=$("helpPreview").value;if(!t||t.indexOf("点击生成")===0){toast("请先生成求助信息","err");return}if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){toast("已复制，可粘贴到短信或微信发送","ok")}).catch(function(){toast("复制失败，请手动复制","err")})}else{$("helpPreview").select();document.execCommand("copy");toast("已复制","ok")}}
+function generateHelpFromAlarm(a){$("helpDevice").value=a.deviceName||"";$("helpLocation").value=a.location||"";$("helpContent").value=a.alarmContent||"";$("helpLevel").value=a.alarmLevel||"HIGH";generateHelpMsg();showSection("help");toast("已根据当前告警生成求助信息","ok")}
+["kbModal","detailModal","contactModal"].forEach(function(id){$(id).addEventListener("click",function(e){if(e.target===this)closeModal(id)})});
+
+// ==================== INIT ====================
+loadDashboard();setInterval(loadDashboard,30000);
+}catch(e){console.error('INIT ERROR:',e.message);document.body.innerHTML+='<div style="position:fixed;top:0;left:0;right:0;background:red;color:white;padding:20px;z-index:9999">JS ERROR: '+e.message+'</div>';}</script>
+</body>
+</html>

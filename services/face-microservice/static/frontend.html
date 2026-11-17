@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人脸识别系统</title>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #0f172a; color: #e2e8f0; min-height: 100vh;
+}
+.header {
+  background: #1e293b; padding: 20px 32px;
+  border-bottom: 1px solid #334155;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header h1 { font-size: 1.3rem; color: #f8fafc; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.badge { background: #4f46e5; padding: 6px 14px; border-radius: 20px; font-size: .8rem; color: #fff; }
+.api-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.api-dot.online { background: #22c55e; }
+.api-dot.offline { background: #ef4444; }
+.api-text { font-size: .8rem; color: #94a3b8; }
+
+/* ── 安防控制台按钮 ── */
+.btn-console {
+  padding: 8px 16px; border-radius: 10px; font-size: .8rem; font-weight: 600;
+  border: 1px solid rgba(56, 189, 248, 0.3); cursor: pointer;
+  background: rgba(56, 189, 248, 0.1); color: #38bdf8;
+  transition: .2s; text-decoration: none; display: flex; align-items: center; gap: 6px;
+}
+.btn-console:hover {
+  background: rgba(56, 189, 248, 0.2); border-color: #38bdf8;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.15);
+}
+
+/* ── 同步状态指示 ── */
+.sync-indicator {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .75rem; padding: 4px 10px; border-radius: 12px;
+  transition: .3s;
+}
+.sync-indicator.ok { background: rgba(34,197,94,.12); color: #4ade80; }
+.sync-indicator.fail { background: rgba(239,68,68,.12); color: #fca5a5; }
+.sync-indicator.idle { background: rgba(100,116,139,.12); color: #64748b; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.sync-dot.ok { background: #22c55e; }
+.sync-dot.fail { background: #ef4444; }
+.sync-dot.idle { background: #475569; }
+@keyframes syncPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+.sync-dot.pulse { animation: syncPulse 1.5s ease-in-out infinite; }
+
+.main { max-width: 1000px; margin: 24px auto; padding: 0 20px; display: flex; flex-direction: column; gap: 20px; }
+.card { background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155; }
+.card-title {
+  font-size: 1rem; font-weight: 600; margin-bottom: 16px;
+  color: #94a3b8; text-transform: uppercase; letter-spacing: .5px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 2px; margin-bottom: 20px; background: #0f172a; border-radius: 10px; padding: 4px; }
+.tab {
+  flex: 1; padding: 10px 12px; border: none; cursor: pointer;
+  font-size: .85rem; font-weight: 500; text-align: center;
+  border-radius: 8px; transition: .15s;
+  background: transparent; color: #64748b;
+}
+.tab.active { background: #4f46e5; color: #fff; }
+
+/* ── Upload Zone ── */
+.upload-zone {
+  border: 2px dashed #334155; border-radius: 12px;
+  padding: 36px 20px; text-align: center; cursor: pointer;
+  transition: .2s; background: #0f172a;
+}
+.upload-zone:hover { border-color: #4f46e5; background: #1e1e3a; }
+.upload-zone .icon { font-size: 2.2rem; margin-bottom: 8px; }
+.upload-zone p { color: #64748b; font-size: .85rem; margin-top: 6px; }
+.upload-zone input { display: none; }
+
+/* ── Camera / Canvas ── */
+.cam-box {
+  background: #000; border-radius: 12px; overflow: hidden;
+  position: relative; min-height: 240px;
+  display: flex; align-items: center; justify-content: center;
+}
+.cam-box video { width: 100%; max-height: 420px; display: none; object-fit: contain; }
+.cam-placeholder { color: #475569; font-size: .95rem; position: absolute; }
+
+.canvas-wrapper {
+  position: relative; background: #000; border-radius: 12px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 320px;
+}
+.canvas-wrapper canvas {
+  width: 100%; max-height: 480px; object-fit: contain; display: block;
+}
+
+/* Overlay tag on canvas */
+.canvas-wrapper .overlay-tag {
+  position: absolute; z-index: 10;
+  background: rgba(0,0,0,.55); backdrop-filter: blur(6px);
+  padding: 5px 12px; border-radius: 16px; font-size: .75rem; font-weight: 600;
+}
+.overlay-tag.left { left: 12px; top: 12px; }
+.overlay-tag.right { right: 12px; top: 12px; }
+.overlay-tag.live { color: #4ade80; }
+.overlay-tag.idle { color: #64748b; }
+
+/* Success overlay */
+.success-overlay {
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+}
+.success-overlay .check-icon {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: #16a34a; display: flex; align-items: center; justify-content: center;
+  font-size: 2.5rem; margin-bottom: 16px;
+  animation: popIn .4s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.success-overlay .name-label {
+  font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 4px;
+}
+.success-overlay .sub-label {
+  font-size: .9rem; color: #94a3b8; margin-bottom: 20px;
+}
+
+/* ── Buttons ── */
+.btn {
+  padding: 10px 22px; border-radius: 8px; font-size: .9rem;
+  font-weight: 500; border: none; cursor: pointer; transition: .15s;
+}
+.btn-primary { background: #4f46e5; color: #fff; }
+.btn-primary:hover { background: #4338ca; }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-success:hover { background: #15803d; }
+.btn-outline { background: transparent; border: 1px solid #475569; color: #cbd5e1; }
+.btn-outline:hover { background: #1e293b; }
+.btn-danger { background: #dc2626; color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-warn { background: #d97706; color: #fff; }
+.btn-warn:hover { background: #b45309; }
+.btn-sm { padding: 6px 14px; font-size: .8rem; }
+.btn-xs { padding: 4px 10px; font-size: .75rem; }
+.btn-lg { padding: 14px 36px; font-size: 1rem; }
+.btn-group { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+/* ── Input ── */
+.input {
+  width: 100%; padding: 10px 14px; border-radius: 8px;
+  font-size: .9rem; border: 1px solid #475569;
+  background: #0f172a; color: #e2e8f0; outline: none; transition: .15s;
+}
+.input:focus { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79,70,229,.2); }
+
+/* ── User List ── */
+.user-table { width: 100%; border-collapse: collapse; }
+.user-table th, .user-table td {
+  padding: 12px 14px; text-align: left; border-bottom: 1px solid #1e293b;
+}
+.user-table th { color: #64748b; font-size: .8rem; text-transform: uppercase; font-weight: 600; }
+.user-table td { font-size: .9rem; }
+.user-table tr:hover td { background: rgba(79,70,229,.06); }
+.user-table .actions { display: flex; gap: 6px; }
+
+/* ── Preview ── */
+.preview-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.preview-box { flex: 1; min-width: 260px; text-align: center; }
+.preview-box img {
+  max-width: 100%; max-height: 350px; border-radius: 8px;
+  border: 1px solid #334155; object-fit: contain;
+}
+.preview-label { font-weight: 600; margin-bottom: 8px; color: #64748b; font-size: .8rem; text-transform: uppercase; }
+
+/* ── Results ── */
+.result-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 8px; margin-top: 8px;
+}
+.result-item.match { background: #052e16; border-left: 3px solid #22c55e; }
+.result-item.stranger { background: #2e1a05; border-left: 3px solid #f97316; }
+.result-item.spoof { background: #2e0510; border-left: 3px solid #ef4444; }
+.result-item .idx {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .8rem;
+}
+.result-item.match .idx { background: #166534; color: #4ade80; }
+.result-item.stranger .idx { background: #7c2d12; color: #fb923c; }
+.result-item.spoof .idx { background: #7f1d1d; color: #fca5a5; }
+.result-item .info { flex: 1; }
+.result-item .info .name { font-weight: 600; font-size: 1rem; }
+.result-item .info .sub { font-size: .8rem; color: #64748b; margin-top: 2px; }
+.result-item .score { font-weight: 700; font-size: 1.1rem; }
+.result-item.match .score { color: #4ade80; }
+.result-item .liveness-tag {
+  font-size: .7rem; padding: 2px 8px; border-radius: 10px;
+  font-weight: 600; margin-left: 6px;
+}
+.liveness-tag.real { background: #166534; color: #4ade80; }
+.liveness-tag.spoof { background: #7f1d1d; color: #fca5a5; }
+.liveness-tag.unknown { background: #1e293b; color: #64748b; }
+.result-item.stranger .score { color: #fb923c; }
+
+/* Live result chips */
+.live-results {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; min-height: 32px;
+}
+.live-result-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 16px;
+  font-size: .8rem; font-weight: 500;
+}
+.live-result-chip.match { background: #052e16; border: 1px solid #166534; color: #4ade80; }
+.live-result-chip.stranger { background: #2e1a05; border: 1px solid #7c2d12; color: #fb923c; }
+.live-result-chip.spoof { background: #2e0510; border: 1px solid #7f1d1d; color: #fca5a5; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 18px; height: 18px; border: 2px solid #334155;
+  border-top-color: #818cf8; border-radius: 50%;
+  display: inline-block; animation: spin .6s linear infinite;
+}
+
+.summary {
+  padding: 10px 16px; border-radius: 8px;
+  font-weight: 600; font-size: .9rem; margin-bottom: 8px;
+}
+.summary.match { background: #052e16; color: #4ade80; }
+.summary.stranger { background: #2e1a05; color: #fb923c; }
+.summary.mixed { background: #1e293b; color: #facc15; }
+.summary.info { background: #0c1929; color: #60a5fa; }
+
+.empty-state { text-align: center; padding: 40px 20px; color: #475569; }
+.empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; top: 20px; right: 20px; z-index: 999;
+  padding: 12px 20px; border-radius: 8px; font-size: .9rem;
+  font-weight: 500; color: #fff; animation: slideIn .3s ease;
+  max-width: 360px; box-shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+.toast.success { background: #16a34a; }
+.toast.error { background: #dc2626; }
+.toast.info { background: #4f46e5; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center; z-index: 998;
+}
+.modal {
+  background: #1e293b; border-radius: 12px; padding: 28px;
+  border: 1px solid #334155; min-width: 360px; max-width: 440px;
+}
+.modal h3 { margin-bottom: 12px; color: #f8fafc; }
+.modal p { color: #94a3b8; font-size: .9rem; margin-bottom: 20px; }
+.modal .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Inline register form ── */
+.register-form { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.register-form .input { flex: 1; min-width: 140px; }
+
+/* ═══════════ TTS Card — Glassmorphism ═══════════ */
+.tts-panel {
+  background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 14px; padding: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.tts-panel-title {
+  font-size: .85rem; font-weight: 600; color: #38bdf8;
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.tts-panel-title .icon-speaker { font-size: 1.1rem; }
+
+.tts-textarea {
+  width: 100%; min-height: 72px; padding: 10px 12px;
+  border-radius: 10px; font-size: .85rem; line-height: 1.5;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(15, 23, 42, 0.7); color: #e2e8f0;
+  outline: none; resize: vertical; transition: .2s;
+  font-family: inherit;
+}
+.tts-textarea:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+.tts-textarea::placeholder { color: #475569; }
+
+.tts-slider-group { margin: 12px 0; }
+.tts-slider-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: .78rem; color: #94a3b8; margin-bottom: 6px;
+}
+.tts-slider-label span.val { color: #38bdf8; font-weight: 600; min-width: 36px; text-align: right; }
+
+/* Custom range slider */
+.tts-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 3px;
+  background: rgba(56, 189, 248, 0.15); outline: none;
+}
+.tts-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #38bdf8; cursor: pointer;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+  transition: .15s;
+}
+.tts-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.tts-slider::-moz-range-thumb {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #38bdf8; border: none; cursor: pointer;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.tts-btn-row { display: flex; gap: 8px; margin-top: 12px; }
+.btn-tts {
+  flex: 1; padding: 11px 18px; border-radius: 10px;
+  font-size: .85rem; font-weight: 600; border: none; cursor: pointer;
+  transition: .2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+  color: #0f172a; letter-spacing: .3px;
+}
+.btn-tts:hover { background: linear-gradient(135deg, #0284c7, #0ea5e9); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(56, 189, 248, 0.3); }
+.btn-tts:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-tts .spk-icon { font-size: 1rem; }
+
+.btn-tts-greet {
+  padding: 8px 14px; border-radius: 10px; font-size: .8rem; font-weight: 500;
+  border: 1px solid rgba(56, 189, 248, 0.3); cursor: pointer;
+  background: rgba(56, 189, 248, 0.08); color: #38bdf8;
+  transition: .2s; white-space: nowrap;
+}
+.btn-tts-greet:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: #38bdf8;
+}
+
+.tts-context {
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; flex-wrap: wrap;
+}
+.tts-context-label {
+  font-size: .78rem; color: #64748b;
+}
+.tts-context-label strong {
+  color: #38bdf8; font-weight: 600;
+}
+
+.tts-audio-status {
+  font-size: .75rem; color: #64748b; margin-top: 8px; text-align: center;
+  min-height: 18px;
+}
+.tts-audio-status.playing { color: #38bdf8; }
+
+/* Live row: camera left + TTS right */
+.live-row {
+  display: flex; gap: 16px; align-items: flex-start;
+}
+.live-row .canvas-col { flex: 1; min-width: 0; }
+.live-row .tts-col { width: 280px; flex-shrink: 0; }
+
+@media (max-width: 780px) {
+  .live-row { flex-direction: column; }
+  .live-row .tts-col { width: 100%; }
+}
+
+/* ═══════════ Auto-announcement Toast ═══════════ */
+.announce-toast {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 30; pointer-events: none;
+  padding: 12px 28px; border-radius: 28px;
+  font-size: .95rem; font-weight: 600; letter-spacing: .5px;
+  color: #fff; white-space: nowrap;
+  background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 20px rgba(56,189,248,.15);
+  animation: announceFadeIn .4s cubic-bezier(.175,.885,.32,1.275);
+}
+.announce-toast.fadeout {
+  animation: announceFadeOut .5s ease forwards;
+}
+@keyframes announceFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px) scale(.92); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+@keyframes announceFadeOut {
+  from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  to { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(.95); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>人脸识别系统</h1>
+  <div class="header-right">
+    <span class="sync-indicator idle" id="syncIndicator" title="Spring Boot 同步状态">
+      <span class="sync-dot idle" id="syncDot"></span>
+      <span id="syncText">同步待机</span>
+    </span>
+    <span class="api-dot" id="apiDot"></span>
+    <span class="api-text" id="apiLabel">检测中</span>
+    <span class="badge" id="userCount">...</span>
+    <a class="btn-console" href="http://localhost:8080" target="_blank" title="打开智慧安防控制台">
+      🛡 安防控制台
+    </a>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ═══════════ Tabs ═══════════ -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchMainTab('recognize')">识别</button>
+      <button class="tab" onclick="switchMainTab('users')">用户管理</button>
+    </div>
+
+    <!-- ============ 识别面板 ============ -->
+    <div id="panel-recognize">
+      <div class="tabs" style="margin-top:0">
+        <button class="tab active" onclick="switchSubTab('live')">实时检测</button>
+        <button class="tab" onclick="switchSubTab('upload')">上传图片</button>
+      </div>
+
+      <!-- 实时检测 -->
+      <div id="tab-live">
+        <div class="live-row">
+          <!-- 左侧：摄像头 -->
+          <div class="canvas-col">
+            <div class="canvas-wrapper" id="canvasWrapper">
+              <video id="liveVideo" autoplay playsinline muted style="display:none"></video>
+              <canvas id="liveCanvas"></canvas>
+
+              <!-- 状态标签 -->
+              <div class="overlay-tag left idle" id="camTag">摄像头未启动</div>
+              <div class="overlay-tag right" id="fpsTag" style="display:none">0 FPS</div>
+
+              <!-- 🔊 自动播报 Toast -->
+              <div class="announce-toast" id="announceToast" style="display:none"></div>
+
+              <!-- ✅ 检测成功弹出层 -->
+              <div class="success-overlay" id="successOverlay" style="display:none">
+                <div class="check-icon">✓</div>
+                <div class="name-label" id="successName"></div>
+                <div class="sub-label" id="successSub"></div>
+                <button class="btn btn-primary btn-lg" onclick="confirmAndContinue()">继续检测下一位</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：TTS 语音播报面板 -->
+          <div class="tts-col">
+            <div class="tts-panel" id="ttsPanel">
+              <div class="tts-panel-title">
+                <span class="icon-speaker">🔊</span> 语音播报
+              </div>
+
+              <textarea class="tts-textarea" id="ttsText" placeholder="输入要播报的文字...">你好，欢迎使用人脸识别系统。</textarea>
+
+              <div class="tts-slider-group">
+                <div class="tts-slider-label">
+                  <span>语速</span>
+                  <span class="val" id="ttsSpeedVal">1.0x</span>
+                </div>
+                <input type="range" class="tts-slider" id="ttsSpeed" min="0.5" max="2.0" step="0.1" value="1.0">
+              </div>
+
+              <div class="tts-btn-row">
+                <button class="btn-tts" id="ttsSynthesizeBtn" onclick="ttsSynthesize()">
+                  <span class="spk-icon">🔊</span> 合成播报
+                </button>
+              </div>
+
+              <div class="tts-audio-status" id="ttsAudioStatus"></div>
+
+              <!-- 上下文关联：检测到人员时显示一键问候 -->
+              <div class="tts-context" id="ttsContext" style="display:none">
+                <span class="tts-context-label">当前人员：<strong id="ttsDetectedName"></strong></span>
+                <button class="btn-tts-greet" onclick="ttsGreetDetected()">👋 一键问候</button>
+              </div>
+            </div>
+          </div>
+        </div><!-- /live-row -->
+
+        <div class="btn-group">
+          <button class="btn btn-primary" id="liveStartBtn" onclick="startLiveDetection()">启动实时检测</button>
+          <button class="btn btn-outline" id="liveStopBtn" style="display:none" onclick="stopLiveDetection()">停止</button>
+          <span style="font-size:.8rem;color:#64748b;display:flex;align-items:center;" id="liveStatus">等待启动</span>
+        </div>
+
+        <div class="live-results" id="liveResults"></div>
+      </div>
+
+      <!-- 上传图片 -->
+      <div id="tab-upload" style="display:none">
+        <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="icon"></div>
+          <div>点击选择图片 或 拖拽到此处</div>
+          <p>支持 JPG / PNG / BMP</p>
+          <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="uploadRecognizeBtn" disabled onclick="recognizeFile()">开始识别</button>
+          <button class="btn btn-outline btn-sm" onclick="clearRecognition()">清除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 用户管理面板 ============ -->
+    <div id="panel-users" style="display:none">
+      <div class="card-title">注册新用户</div>
+      <div class="register-form">
+        <input class="input" type="text" id="regName" placeholder="输入用户姓名...">
+        <button class="btn btn-success btn-sm" onclick="registerViaCamera()">拍照注册</button>
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('regFileInput').click()">上传照片注册</button>
+        <input type="file" id="regFileInput" accept="image/*" style="display:none" onchange="registerViaUpload(this)">
+      </div>
+
+      <div id="regPreviewArea" style="display:none; margin-bottom: 16px;">
+        <div class="card-title" style="margin-top:0">确认注册照片</div>
+        <div style="text-align:center; margin-bottom: 12px;">
+          <img id="regPreviewImg" src="" alt="预览" style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid #334155;">
+        </div>
+        <div style="text-align:center; color:#94a3b8; font-size:.9rem; margin-bottom:12px;">
+          姓名: <strong id="regPreviewName" style="color:#f8fafc;"></strong>
+        </div>
+        <div class="btn-group" style="justify-content:center">
+          <button class="btn btn-outline btn-sm" onclick="cancelRegPreview()">取消</button>
+          <button class="btn btn-success" id="regConfirmBtn" onclick="confirmRegister()">确认注册</button>
+        </div>
+      </div>
+
+      <div id="regCameraArea" style="display:none; margin-bottom: 16px;">
+        <div class="cam-box" style="min-height:200px">
+          <video id="regVideo" autoplay playsinline></video>
+          <div class="cam-placeholder" id="regCamPlaceholder">摄像头画面</div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary btn-sm" id="regOpenCamBtn" onclick="openRegCamera()">打开摄像头</button>
+          <button class="btn btn-outline btn-sm" id="regCloseCamBtn" style="display:none" onclick="closeRegCamera()">关闭</button>
+          <button class="btn btn-success btn-sm" id="regCaptureBtn" style="display:none" onclick="doRegisterViaCamera()">确认注册</button>
+        </div>
+      </div>
+
+      <hr style="border-color:#1e293b; margin: 16px 0;">
+
+      <div class="card-title" style="margin-top:0">批量操作</div>
+      <div class="btn-group" style="margin-top:0">
+        <button class="btn btn-outline btn-sm" onclick="batchRegister()">从 face_db 批量注册</button>
+        <button class="btn btn-outline btn-sm" onclick="loadUserList()">刷新用户列表</button>
+      </div>
+
+      <hr style="border-color:#1e293b; margin: 16px 0;">
+
+      <div class="card-title" style="margin-top:0">已注册用户 (<span id="userCount2">0</span>)</div>
+      <div id="userListArea">
+        <div class="empty-state"><div class="empty-icon"></div><p>暂无注册用户</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 识别结果（上传模式） ═══════════ -->
+  <div class="card" id="resultCard" style="display:none">
+    <div class="card-title">识别结果<button class="btn btn-outline btn-sm" onclick="clearRecognition()">清除</button></div>
+    <div class="preview-row">
+      <div class="preview-box"><div class="preview-label">原图</div><img id="originalImg" src="" alt="原图"></div>
+      <div class="preview-box"><div class="preview-label">标注图</div><img id="annotatedImg" src="" alt="标注图"></div>
+    </div>
+    <div id="resultSummary" style="margin-top:16px"></div>
+    <div id="resultList"></div>
+  </div>
+</div>
+
+<div id="toastContainer"></div>
+
+<div class="modal-overlay" id="deleteModal" style="display:none">
+  <div class="modal">
+    <h3>确认删除</h3>
+    <p>确定要删除用户 "<strong id="deleteUserName"></strong>" 吗？</p>
+    <div class="modal-btns">
+      <button class="btn btn-outline btn-sm" onclick="closeDeleteModal()">取消</button>
+      <button class="btn btn-danger btn-sm" id="confirmDeleteBtn">确认删除</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════
+//  Polyfill: CanvasRenderingContext2D.roundRect
+// ═══════════════════════════════════════════
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
+    this.moveTo(x + r.tl, y);
+    this.lineTo(x + w - r.tr, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+    this.lineTo(x + w, y + h - r.br);
+    this.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+    this.lineTo(x + r.bl, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+    this.lineTo(x, y + r.tl);
+    this.quadraticCurveTo(x, y, x + r.tl, y);
+  };
+}
+
+// ═══════════════════════════════════════════
+//  Config
+// ═══════════════════════════════════════════
+const API_BASE = '';
+const DETECT_INTERVAL = 100;  // 检测帧间隔 ms（10 FPS）
+const SEND_WIDTH = 480;       // 发送到服务端的图片宽度（提高分辨率有助检测）
+
+// HTMLMediaElement readyState 常量兼容
+var HAVE_CURRENT_DATA = (typeof HTMLMediaElement !== 'undefined') ? HTMLMediaElement.HAVE_CURRENT_DATA : 2;
+
+(async function init() {
+  var statusEl = document.getElementById('apiLabel');
+  var dotEl = document.getElementById('apiDot');
+  var countEl = document.getElementById('userCount');
+
+  // 显示版本号 — 确认加载的是最新代码
+  console.log('[FaceRec] v3.0 — WebSocket + HTTP fallback, non-mirrored 480px');
+
+  // 检测是否通过 file:// 协议打开（而不是 http://localhost:5000）
+  if (window.location.protocol === 'file:') {
+    dotEl.className = 'api-dot offline';
+    statusEl.textContent = '错误: 请用 http://localhost:5000 访问!';
+    countEl.textContent = '不要直接双击 HTML 文件';
+    alert('请通过 Flask 服务器访问!\n\n1. 先运行: python web_app.py\n2. 然后浏览器打开: http://localhost:5000/frontend\n\n不要直接双击 HTML 文件!');
+    return;
+  }
+
+  try {
+    var r = await fetch(API_BASE + '/api/status');
+    if (r.ok) {
+      var d = await r.json();
+      var s = d.data || d;  // 兼容新旧格式
+      dotEl.className = 'api-dot online';
+      statusEl.textContent = 'API 在线 (v4.0)';
+      countEl.textContent = '已注册: ' + s.registered_users + ' 人 | ' + s.recognition_model;
+      console.log('[FaceRec] API connected:', d);
+    } else {
+      statusEl.textContent = 'API 错误 HTTP' + r.status;
+    }
+  } catch(e) {
+    dotEl.className = 'api-dot offline';
+    statusEl.textContent = 'API 离线 — 确认已运行 python web_app.py';
+    console.error('[FaceRec] API unreachable:', e.message);
+  }
+})();
+
+// ── Spring Boot 同步状态轮询 ──
+(function initSyncPolling() {
+  async function pollSyncStatus() {
+    try {
+      const r = await fetch(API_BASE + '/api/sync/status');
+      if (!r.ok) return;
+      const d = await r.json();
+      const status = d.data || d;
+      if (!status || !status.enabled) {
+        updateSyncUI('idle', '同步已禁用');
+        return;
+      }
+
+      const last = status.last_sync;
+      const result = status.last_result;
+
+      if (last && last.recent) {
+        if (last.success) {
+          const name = result ? result.name : '—';
+          const t = result ? result.time : '';
+          updateSyncUI('ok', '已同步: ' + name + ' ' + t);
+        } else {
+          const err = last.error || '未知错误';
+          updateSyncUI('fail', '同步失败: ' + err);
+        }
+      } else {
+        updateSyncUI('idle', '等待同步...');
+      }
+    } catch(e) {
+      // 静默失败
+    }
+  }
+
+  function updateSyncUI(cls, text) {
+    const dot = document.getElementById('syncDot');
+    const txt = document.getElementById('syncText');
+    const ind = document.getElementById('syncIndicator');
+    if (dot) { dot.className = 'sync-dot ' + cls + (cls === 'idle' ? ' pulse' : ''); }
+    if (txt) { txt.textContent = text; }
+    if (ind) { ind.className = 'sync-indicator ' + cls; }
+  }
+
+  // 每 5 秒轮询一次
+  setInterval(pollSyncStatus, 5000);
+  // 首次延迟 3 秒执行
+  setTimeout(pollSyncStatus, 3000);
+})();
+
+// ═══════════════════════════════════════════
+//  Main Tab Switching
+// ═══════════════════════════════════════════
+function switchMainTab(tab) {
+  document.getElementById('panel-recognize').style.display = tab === 'recognize' ? '' : 'none';
+  document.getElementById('panel-users').style.display = tab === 'users' ? '' : 'none';
+  document.querySelectorAll('.tabs:first-of-type .tab').forEach(t => {
+    t.classList.toggle('active', (tab === 'recognize' && t.textContent.includes('识别')) || (tab === 'users' && t.textContent.includes('用户')));
+  });
+  if (tab === 'users') loadUserList();
+}
+
+function switchSubTab(tab) {
+  document.getElementById('tab-live').style.display = tab === 'live' ? '' : 'none';
+  document.getElementById('tab-upload').style.display = tab === 'upload' ? '' : 'none';
+  document.querySelectorAll('#panel-recognize .tab').forEach(t => {
+    t.classList.toggle('active',
+      (tab === 'live' && t.textContent.includes('实时')) ||
+      (tab === 'upload' && t.textContent.includes('上传')));
+  });
+  if (tab !== 'live') stopLiveDetection();
+}
+
+// ═══════════════════════════════════════════
+//  Live Detection — WebSocket 实时 + HTTP 降级
+// ═══════════════════════════════════════════
+let liveStream = null;
+let detectTimer = null;
+let animFrameId = null;
+let liveState = 'idle';       // 'idle' | 'detecting' | 'success'
+let lastResults = null;       // 缓存最新检测结果
+let detectCount = 0;          // 成功检测计数
+let socket = null;            // Socket.IO 连接
+let wsMode = false;           // true=WebSocket, false=HTTP轮询
+
+// 请求节流
+let detectPending = false;
+let detectSentCount = 0;
+let detectRecvCount = 0;
+
+// FPS 计数器
+let fpsFrames = 0, fpsLastTime = 0, fpsValue = 0;
+
+async function startLiveDetection() {
+  const btn = document.getElementById('liveStartBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 启动中...';
+
+  try {
+    console.log('[FaceRec] Starting camera...');
+    // 打开摄像头
+    liveStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      audio: false
+    });
+    console.log('[FaceRec] Camera opened');
+
+    const video = document.getElementById('liveVideo');
+    video.srcObject = liveStream;
+
+    // 等待视频元数据加载 + 开始播放
+    await new Promise(r => { video.onloadedmetadata = () => { video.play(); r(); }; });
+    console.log('[FaceRec] Video metadata loaded, readyState=' + video.readyState);
+
+    // 等待首帧解码完成（readyState >= HAVE_CURRENT_DATA），最多等 3 秒
+    if (video.readyState < HAVE_CURRENT_DATA) {
+      await new Promise(r => {
+        var tid = setTimeout(r, 3000);
+        video.addEventListener('canplay', () => { clearTimeout(tid); r(); }, { once: true });
+      });
+    }
+
+    // 给摄像头 500ms 调整曝光/白平衡
+    await new Promise(r => setTimeout(r, 500));
+
+    const canvas = document.getElementById('liveCanvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    // 尝试连接 WebSocket
+    wsMode = false;
+    try {
+      await connectWebSocket();
+      wsMode = true;
+      console.log('[Live] Using WebSocket mode');
+    } catch(e) {
+      console.warn('[Live] WebSocket unavailable, using HTTP fallback:', e.message);
+      wsMode = false;
+    }
+
+    // 先设状态再启动渲染循环
+    liveState = 'detecting';
+    detectCount = 0;
+    detectSentCount = 0;
+    detectRecvCount = 0;
+    detectPending = false;
+    lastResults = null;
+
+    // 启动 60fps 渲染循环
+    fpsFrames = 0; fpsLastTime = performance.now(); fpsValue = 0;
+    lastRenderTime = 0;
+    renderLoop(performance.now());
+
+    // 启动检测帧发送
+    // WebSocket 模式: 每 150ms 发一帧（低开销，可以适当降低频率）
+    // HTTP 模式: 每 200ms 发一帧（减少单线程 Flask 压力）
+    const interval = wsMode ? 150 : 200;
+    detectTimer = setInterval(captureAndDetect, interval);
+
+    document.getElementById('liveStartBtn').style.display = 'none';
+    document.getElementById('liveStopBtn').style.display = '';
+    const modeLabel = wsMode ? 'WebSocket' : 'HTTP轮询';
+    document.getElementById('liveStatus').innerHTML = '<span style="color:#4ade80">● 实时检测中 (' + modeLabel + ')</span>';
+    document.getElementById('camTag').textContent = '检测中';
+    document.getElementById('camTag').className = 'overlay-tag left live';
+    document.getElementById('fpsTag').style.display = '';
+    document.getElementById('successOverlay').style.display = 'none';
+    document.getElementById('liveResults').innerHTML = '';
+
+  } catch(err) {
+    toast('启动失败: ' + err.message, 'error');
+    stopLiveDetection();
+  }
+  btn.disabled = false;
+  btn.textContent = '启动实时检测';
+}
+
+// ── WebSocket 连接 ──
+function connectWebSocket() {
+  return new Promise((resolve, reject) => {
+    if (typeof io === 'undefined') {
+      return reject(new Error('Socket.IO not loaded'));
+    }
+    socket = io({ transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      console.log('[WS] Connected:', socket.id);
+      resolve();
+    });
+
+    socket.on('detect_result', (data) => {
+      detectPending = false;
+      if (liveState !== 'detecting') return;
+      if (data.error) { showDetectError(data.error); return; }
+      hideDetectError();
+      lastResults = data;
+      detectRecvCount++;
+
+      const faces = data.faces || [];
+      const ms = data.ms || 0;
+      document.getElementById('liveStatus').innerHTML =
+        '<span style="color:#4ade80">● WS · 发' + detectSentCount + '/收' + detectRecvCount + ' · ' + faces.length + '人脸 · ' + ms + 'ms</span>';
+
+      let chipsHtml = '';
+      for (const f of faces) {
+        let cls = f.blocked ? 'spoof' : (f.matched ? 'match' : 'stranger');
+        let txt = f.blocked ? '假体攻击' : (f.matched ? f.name + ' ' + f.similarity.toFixed(0) + '%' : '陌生人 ' + f.similarity.toFixed(0) + '%');
+        chipsHtml += '<div class="live-result-chip ' + cls + '">' + txt + '</div>';
+      }
+      if (!chipsHtml) chipsHtml = '<span style="font-size:.8rem;color:#475569;">未检测到人脸</span>';
+      document.getElementById('liveResults').innerHTML = chipsHtml;
+
+      const matched = faces.find(f => f.matched && !f.blocked);
+      if (matched) {
+        enterSuccessState(matched);
+      }
+    });
+
+    // 🔊 监听后端推送的 TTS 音频自动播报
+    socket.on('tts_audio', (data) => {
+      console.log('[TTS] Received tts_audio:', data.text);
+      if (data.audio_base64) {
+        autoPlayAudio(data.audio_base64, data.text);
+      }
+    });
+
+    socket.on('connect_error', (err) => {
+      console.warn('[WS] Connection failed:', err.message);
+      socket = null;
+      reject(err);
+    });
+
+    // 超时 3 秒
+    setTimeout(() => {
+      if (!socket || !socket.connected) {
+        if (socket) { socket.close(); socket = null; }
+        reject(new Error('WebSocket timeout'));
+      }
+    }, 3000);
+  });
+}
+
+function sendFrameAndDetect(dataUrl) {
+  fetch(API_BASE + '/api/detect-live', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: dataUrl
+  })
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    detectPending = false;
+    if (liveState !== 'detecting') return;
+    if (data.error) { showDetectError(data.error); return; }
+    hideDetectError();
+    lastResults = data;
+    detectRecvCount++;
+
+    const faces = data.faces || [];
+    const ms = data.ms || 0;
+    document.getElementById('liveStatus').innerHTML =
+      '<span style="color:#4ade80">● 发' + detectSentCount + '/收' + detectRecvCount + ' · ' + faces.length + '人脸 · ' + ms + 'ms</span>';
+
+    let chipsHtml = '';
+    for (const f of faces) {
+      let cls = f.blocked ? 'spoof' : (f.matched ? 'match' : 'stranger');
+      let txt = f.blocked ? '假体攻击' : (f.matched ? f.name + ' ' + f.similarity.toFixed(0) + '%' : '陌生人 ' + f.similarity.toFixed(0) + '%');
+      chipsHtml += '<div class="live-result-chip ' + cls + '">' + txt + '</div>';
+    }
+    if (!chipsHtml) chipsHtml = '<span style="font-size:.8rem;color:#475569;">未检测到人脸</span>';
+    document.getElementById('liveResults').innerHTML = chipsHtml;
+
+    const matched = faces.find(f => f.matched && !f.blocked);
+    if (matched) {
+      enterSuccessState(matched);
+    }
+
+    // HTTP 降级模式：后端返回 tts_text 时用浏览器 TTS 播报
+    if (data.tts_text) {
+      ttsSpeakWithBrowser(data.tts_text);
+      showAnnouncementToast(data.tts_text);
+    }
+  })
+  .catch(err => {
+    detectPending = false;
+    showDetectError('请求失败: ' + err.message);
+  });
+}
+
+function showDetectError(msg) {
+  document.getElementById('liveStatus').innerHTML =
+    '<span style="color:#ef4444">✕ ' + msg + '</span>';
+}
+function hideDetectError() {}
+
+// ── 60fps 渲染循环（高刷屏上限到 60fps，省出 CPU 做检测）──
+let lastRenderTime = 0;
+function renderLoop(ts) {
+  if (liveState === 'idle') return;
+  animFrameId = requestAnimationFrame(renderLoop);
+
+  // 限制 60fps（16.7ms/帧），跳过多余帧
+  if (ts !== undefined && ts - lastRenderTime < 16) return;
+  lastRenderTime = ts || performance.now();
+
+  const canvas = document.getElementById('liveCanvas');
+  const video = document.getElementById('liveVideo');
+  if (!canvas || !video || video.readyState < HAVE_CURRENT_DATA) return;
+
+  const ctx = canvas.getContext('2d');
+  const cw = canvas.width, ch = canvas.height;
+
+  // 绘制镜像视频帧
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, -cw, 0, cw, ch);
+  ctx.restore();
+
+  // 叠加最新检测结果
+  if (lastResults && lastResults.faces) {
+    drawFaceBoxes(ctx, cw, lastResults.faces);
+  }
+
+  // FPS
+  fpsFrames++;
+  const now = performance.now();
+  if (now - fpsLastTime >= 1000) {
+    fpsValue = fpsFrames;
+    document.getElementById('fpsTag').textContent = fpsFrames + ' FPS';
+    fpsFrames = 0;
+    fpsLastTime = now;
+  }
+}
+
+// ── 绘制人脸框 ──
+function drawFaceBoxes(ctx, cw, faces) {
+  for (const face of faces) {
+    const { bbox, name, similarity, matched, liveness, blocked } = face;
+    if (!bbox) continue;
+    const [x1, y1, x2, y2] = bbox;
+
+    // 镜像坐标
+    const dx1 = cw - x2, dx2 = cw - x1;
+    const bw = dx2 - dx1, bh = y2 - y1;
+    if (bw < 10 || bh < 10) continue;
+
+    let color;
+    if (blocked) color = '#ef4444';
+    else if (matched) color = '#22c55e';
+    else color = '#f97316';
+
+    // 人脸框
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(dx1, y1, bw, bh, 6);
+    ctx.stroke();
+
+    // 文字标签
+    let label = name;
+    if (!blocked && similarity > 0) label += ' ' + similarity.toFixed(0) + '%';
+
+    const fontSize = Math.max(12, Math.min(15, bw / 8));
+    ctx.font = `bold ${fontSize}px -apple-system, 'Segoe UI', sans-serif`;
+    const tw = ctx.measureText(label).width;
+    const labelY = Math.max(4, y1 - fontSize - 10);
+
+    ctx.fillStyle = blocked ? 'rgba(239,68,68,.85)' :
+                    matched ? 'rgba(34,197,94,.85)' : 'rgba(249,115,22,.85)';
+    ctx.beginPath();
+    ctx.roundRect(dx1, labelY, tw + 12, fontSize + 8, 4);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, dx1 + 6, labelY + fontSize + 2);
+
+    // 活体标签
+    if (liveness && liveness.is_real !== undefined) {
+      const lvLabel = liveness.is_real ? '真人 ' + liveness.score.toFixed(0) + '%' : '假体';
+      const lvColor = liveness.is_real ? '#4ade80' : '#fca5a5';
+      const lf = fontSize * 0.75;
+      ctx.font = `${lf}px -apple-system, 'Segoe UI', sans-serif`;
+      const lw = ctx.measureText(lvLabel).width;
+      ctx.fillStyle = liveness.is_real ? 'rgba(22,101,52,.85)' : 'rgba(127,29,29,.85)';
+      ctx.beginPath();
+      ctx.roundRect(dx1, y2 + 4, lw + 10, lf + 6, 3);
+      ctx.fill();
+      ctx.fillStyle = lvColor;
+      ctx.fillText(lvLabel, dx1 + 5, y2 + 6 + lf);
+    }
+  }
+}
+
+// ── 定时发送帧做检测 ──
+// 首次发送标记（用于调试日志）
+let firstFrameSent = false;
+
+function captureAndDetect() {
+  if (liveState !== 'detecting') return;
+
+  // 节流：上一帧未返回时跳过
+  if (detectPending) return;
+
+  const video = document.getElementById('liveVideo');
+  // HAVE_CURRENT_DATA (2) 即可绘制帧，不需要等 HAVE_ENOUGH_DATA (4)
+  if (!video || video.readyState < HAVE_CURRENT_DATA) {
+    if (!firstFrameSent && video) {
+      console.log('[FaceRec] Waiting for video ready... readyState=' + video.readyState + ' need=' + HAVE_CURRENT_DATA);
+    }
+    return;
+  }
+
+  const off = document.createElement('canvas');
+  const scale = SEND_WIDTH / video.videoWidth;
+  off.width = SEND_WIDTH;
+  off.height = Math.round(video.videoHeight * scale);
+  const octx = off.getContext('2d');
+  // 注意：发送给服务端的帧不要镜像！MTCNN 在镜像图上检测率极低。
+  // 渲染循环中单独做镜像显示即可。
+  octx.drawImage(video, 0, 0, off.width, off.height);
+
+  const dataUrl = off.toDataURL('image/jpeg', 0.7);
+
+  if (!firstFrameSent) {
+    console.log('[FaceRec] First frame captured! Size=' + dataUrl.length + ' mode=' + (wsMode ? 'WS' : 'HTTP'));
+    firstFrameSent = true;
+  }
+
+  if (wsMode && socket && socket.connected) {
+    // WebSocket 模式：emit 事件
+    detectPending = true;
+    detectSentCount++;
+    socket.emit('detect', { image: dataUrl });
+  } else {
+    // HTTP 降级模式
+    detectPending = true;
+    detectSentCount++;
+    sendFrameAndDetect(dataUrl);
+  }
+
+  if (detectSentCount % 10 === 0) {
+    document.getElementById('liveStatus').innerHTML =
+      '<span style="color:#4ade80">● 检测中 · 已发' + detectSentCount + '帧</span>';
+  }
+}
+
+// ── 进入成功确认状态 ──
+function enterSuccessState(matchedFace) {
+  liveState = 'success';
+  detectCount++;
+  lastResults = null;
+
+  // 停止发送检测帧（渲染继续）
+  if (detectTimer) { clearInterval(detectTimer); detectTimer = null; }
+
+  // 显示成功弹层
+  document.getElementById('successName').textContent = '检测成功: ' + matchedFace.name;
+  document.getElementById('successSub').textContent =
+    '相似度 ' + matchedFace.similarity.toFixed(0) + '%  ·  已检测 ' + detectCount + ' 人';
+  document.getElementById('successOverlay').style.display = '';
+
+  // 更新 TTS 上下文面板
+  updateTtsContext(matchedFace.name);
+
+  // 更新状态
+  document.getElementById('liveStatus').innerHTML =
+    '<span style="color:#facc15">⏸ 等待确认（已检测 ' + detectCount + ' 人）</span>';
+  document.getElementById('camTag').textContent = '等待确认';
+  document.getElementById('camTag').className = 'overlay-tag left';
+
+  document.getElementById('liveResults').innerHTML =
+    '<div class="live-result-chip match">✓ ' + matchedFace.name + ' ' + matchedFace.similarity.toFixed(0) + '%</div>';
+}
+
+// ── 确认并继续 ──
+function confirmAndContinue() {
+  document.getElementById('successOverlay').style.display = 'none';
+  document.getElementById('liveResults').innerHTML = '';
+  lastResults = null;
+  detectPending = false;
+  updateTtsContext(null);  // 清除 TTS 上下文关联
+
+  // 恢复检测
+  liveState = 'detecting';
+  const interval = wsMode ? 150 : 200;
+  detectTimer = setInterval(captureAndDetect, interval);
+
+  const modeLabel = wsMode ? 'WebSocket' : 'HTTP轮询';
+  document.getElementById('liveStatus').innerHTML = '<span style="color:#4ade80">● 实时检测中 (' + modeLabel + ')</span>';
+  document.getElementById('camTag').textContent = '检测中';
+  document.getElementById('camTag').className = 'overlay-tag left live';
+
+  toast('继续检测下一位...', 'info');
+}
+
+// ── 停止 ──
+function stopLiveDetection() {
+  liveState = 'idle';
+
+  if (detectTimer) { clearInterval(detectTimer); detectTimer = null; }
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  if (liveStream) { liveStream.getTracks().forEach(t => t.stop()); liveStream = null; }
+
+  // 断开 WebSocket
+  if (socket) {
+    try { socket.close(); } catch(e) {}
+    socket = null;
+  }
+  wsMode = false;
+  detectPending = false;
+
+  lastResults = null;
+  firstFrameSent = false;
+
+  const canvas = document.getElementById('liveCanvas');
+  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+  document.getElementById('liveStartBtn').style.display = '';
+  document.getElementById('liveStopBtn').style.display = 'none';
+  document.getElementById('liveStatus').innerHTML = '等待启动';
+  document.getElementById('camTag').textContent = '摄像头未启动';
+  document.getElementById('camTag').className = 'overlay-tag left idle';
+  document.getElementById('fpsTag').style.display = 'none';
+  document.getElementById('successOverlay').style.display = 'none';
+  document.getElementById('liveResults').innerHTML = '';
+  document.getElementById('announceToast').style.display = 'none';
+  updateTtsContext(null);  // 清除 TTS 上下文
+
+  // 停止自动播报音频
+  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
+  if (typeof speechSynthesis !== 'undefined') { speechSynthesis.cancel(); }
+}
+
+// ═══════════════════════════════════════════
+//  File Upload (recognition)
+// ═══════════════════════════════════════════
+let selectedFile = null;
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  if (e.target.files[0]) selectFile(e.target.files[0]);
+});
+
+const zone = document.getElementById('dropZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#4f46e5'; });
+zone.addEventListener('dragleave', () => zone.style.borderColor = '#334155');
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.style.borderColor = '#334155';
+  if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+});
+
+function selectFile(file) {
+  selectedFile = file;
+  document.getElementById('uploadRecognizeBtn').disabled = false;
+  const reader = new FileReader();
+  reader.onload = e => document.getElementById('originalImg').src = e.target.result;
+  reader.readAsDataURL(file);
+}
+
+async function recognizeFile() {
+  if (!selectedFile) return;
+  await callRecognize(selectedFile, document.getElementById('uploadRecognizeBtn'), '开始识别');
+}
+
+async function callRecognize(blobOrFile, btn, origText) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 识别中...';
+  const fd = new FormData();
+  fd.append('image', blobOrFile, 'image.jpg');
+  try {
+    const resp = await fetch(API_BASE + '/api/recognize', { method: 'POST', body: fd });
+    const respData = await resp.json();
+    if (!respData.ok) { toast('识别失败: ' + (respData.error || '未知错误'), 'error'); return; }
+    const data = respData.data || respData;  // 兼容新旧格式
+    document.getElementById('annotatedImg').src = data.annotated_image;
+    document.getElementById('resultCard').style.display = '';
+    const matchCount = data.results.filter(r => r.matched).length;
+    const total = data.total_faces;
+    let cls = total === 0 ? 'stranger' : (matchCount === total ? 'match' : (matchCount > 0 ? 'mixed' : 'stranger'));
+    const labels = { match: '全部匹配', stranger: '未匹配', mixed: '部分匹配' };
+    document.getElementById('resultSummary').innerHTML =
+      `<div class="summary ${cls}">检测到 <b>${total}</b> 张人脸，<b>${matchCount}</b> 人匹配成功 — ${labels[cls]}</div>`;
+    document.getElementById('resultList').innerHTML = data.results.map(r => {
+      let rowClass = 'stranger', icon = '?', mainText = '陌生人', subText = '未找到匹配', scoreHtml = `${r.similarity.toFixed(1)}%`;
+      if (r.blocked) {
+        rowClass = 'spoof'; icon = '!'; mainText = '假体攻击';
+        subText = '已拦截 — ' + (r.block_reason === 'liveness_spoof' ? '活体检测未通过' : r.block_reason);
+        scoreHtml = '';
+      } else if (r.matched) { rowClass = 'match'; icon = '✓'; mainText = r.name; subText = '匹配成功'; }
+      let lvTag = '';
+      if (r.liveness && r.liveness.is_real !== undefined) {
+        lvTag = `<span class="liveness-tag ${r.liveness.is_real ? 'real' : 'spoof'}">${r.liveness.is_real ? '真人' : '假体'} ${r.liveness.score.toFixed(0)}%</span>`;
+      }
+      return `<div class="result-item ${rowClass}"><div class="idx">${icon}</div><div class="info"><div class="name">${mainText} ${lvTag}</div><div class="sub">${subText}</div></div><div class="score">${scoreHtml}</div></div>`;
+    }).join('');
+  } catch(err) { toast('请求失败，请确认后端已启动', 'error'); }
+  btn.disabled = false; btn.textContent = origText;
+}
+
+function clearRecognition() {
+  selectedFile = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('originalImg').src = '';
+  document.getElementById('annotatedImg').src = '';
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('uploadRecognizeBtn').disabled = true;
+  document.getElementById('resultSummary').innerHTML = '';
+  document.getElementById('resultList').innerHTML = '';
+}
+
+// ═══════════════════════════════════════════
+//  User Management (unchanged)
+// ═══════════════════════════════════════════
+async function loadUserList() {
+  try {
+    const resp = await fetch(API_BASE + '/api/users');
+    const respData = await resp.json();
+    const data = respData.data || respData;
+    document.getElementById('userCount2').textContent = data.total;
+    document.getElementById('userCount').textContent = '已注册: ' + data.total + ' 人';
+    if (data.users.length === 0) {
+      document.getElementById('userListArea').innerHTML = '<div class="empty-state"><div class="empty-icon"></div><p>暂无注册用户</p></div>';
+      return;
+    }
+    document.getElementById('userListArea').innerHTML = `
+      <table class="user-table"><thead><tr><th>姓名</th><th>人脸数</th><th>操作</th></tr></thead>
+      <tbody>${data.users.map(u => `<tr><td><strong>${u.name}</strong></td><td>${u.face_count} 张</td><td class="actions"><button class="btn btn-danger btn-xs" onclick="confirmDelete('${u.name.replace(/'/g,"\\'")}')">删除</button></td></tr>`).join('')}</tbody></table>`;
+  } catch(err) { toast('获取用户列表失败', 'error'); }
+}
+
+let deleteTarget = null;
+function confirmDelete(name) {
+  deleteTarget = name;
+  document.getElementById('deleteUserName').textContent = name;
+  document.getElementById('deleteModal').style.display = '';
+  document.getElementById('confirmDeleteBtn').onclick = doDelete;
+}
+function closeDeleteModal() { deleteTarget = null; document.getElementById('deleteModal').style.display = 'none'; }
+async function doDelete() {
+  if (!deleteTarget) return;
+  try {
+    const resp = await fetch(API_BASE + '/api/users/' + encodeURIComponent(deleteTarget), { method: 'DELETE' });
+    const respData = await resp.json();
+    if (resp.ok) {
+      const data = respData.data || respData;
+      toast(data.message, 'success'); deleteTarget = null; document.getElementById('deleteModal').style.display = 'none'; loadUserList();
+    } else toast(respData.error || '删除失败', 'error');
+  } catch(err) { toast('请求失败', 'error'); }
+}
+
+let regStream = null, pendingRegFile = null, pendingRegBlob = null;
+
+function registerViaUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const name = document.getElementById('regName').value.trim();
+  if (!name) { toast('请先输入用户姓名', 'error'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('regPreviewImg').src = e.target.result;
+    document.getElementById('regPreviewName').textContent = name;
+    document.getElementById('regPreviewArea').style.display = '';
+    document.getElementById('regCameraArea').style.display = 'none';
+    document.getElementById('regPreviewArea').scrollIntoView({ behavior: 'smooth' });
+  };
+  reader.readAsDataURL(file);
+  pendingRegFile = file; pendingRegBlob = null;
+}
+
+function registerViaCamera() {
+  const name = document.getElementById('regName').value.trim();
+  if (!name) { toast('请先输入用户姓名', 'error'); return; }
+  document.getElementById('regCameraArea').style.display = '';
+  document.getElementById('regPreviewArea').style.display = 'none';
+}
+
+async function openRegCamera() {
+  const btn = document.getElementById('regOpenCamBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 打开中...';
+  try {
+    regStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    const v = document.getElementById('regVideo'); v.srcObject = regStream; v.style.display = 'block';
+    document.getElementById('regCamPlaceholder').style.display = 'none';
+    document.getElementById('regOpenCamBtn').style.display = 'none';
+    document.getElementById('regCloseCamBtn').style.display = '';
+    document.getElementById('regCaptureBtn').style.display = '';
+  } catch(err) { toast('无法访问摄像头: ' + err.message, 'error'); }
+  btn.disabled = false; btn.textContent = '打开摄像头';
+}
+
+function closeRegCamera() {
+  if (regStream) { regStream.getTracks().forEach(t => t.stop()); regStream = null; }
+  document.getElementById('regVideo').style.display = 'none';
+  document.getElementById('regCamPlaceholder').style.display = '';
+  document.getElementById('regOpenCamBtn').style.display = '';
+  document.getElementById('regCloseCamBtn').style.display = 'none';
+  document.getElementById('regCaptureBtn').style.display = 'none';
+  document.getElementById('regCameraArea').style.display = 'none';
+}
+
+async function doRegisterViaCamera() {
+  if (!regStream) return;
+  const name = document.getElementById('regName').value.trim();
+  if (!name) { toast('请先输入用户姓名', 'error'); return; }
+  const video = document.getElementById('regVideo');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  document.getElementById('regPreviewImg').src = canvas.toDataURL('image/jpeg', 0.9);
+  document.getElementById('regPreviewName').textContent = name;
+  document.getElementById('regPreviewArea').style.display = '';
+  document.getElementById('regCameraArea').style.display = 'none';
+  pendingRegBlob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
+  pendingRegFile = null;
+  document.getElementById('regPreviewArea').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelRegPreview() {
+  pendingRegFile = null; pendingRegBlob = null;
+  document.getElementById('regPreviewArea').style.display = 'none';
+  document.getElementById('regPreviewImg').src = '';
+  closeRegCamera();
+}
+
+async function confirmRegister() {
+  const name = document.getElementById('regPreviewName').textContent;
+  if (!name) return;
+  const fd = new FormData(); fd.append('name', name);
+  if (pendingRegBlob) fd.append('image', pendingRegBlob, 'camera.jpg');
+  else if (pendingRegFile) fd.append('image', pendingRegFile);
+  else { toast('没有可注册的照片', 'error'); return; }
+  const btn = document.getElementById('regConfirmBtn'), origText = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 注册中...';
+  try {
+    const resp = await fetch(API_BASE + '/api/users/register', { method: 'POST', body: fd });
+    const respData = await resp.json();
+    if (resp.ok) {
+      const data = respData.data || respData;
+      toast(data.message + '（已保存到 face_db/' + name + '/）', 'success');
+      document.getElementById('regName').value = '';
+      document.getElementById('regPreviewArea').style.display = 'none';
+      document.getElementById('regPreviewImg').src = '';
+      document.getElementById('regFileInput').value = '';
+      pendingRegFile = null; pendingRegBlob = null;
+      loadUserList();
+    } else toast(respData.error || '注册失败', 'error');
+  } catch(err) { toast('请求失败: ' + err.message, 'error'); }
+  btn.disabled = false; btn.textContent = origText;
+}
+
+async function batchRegister() {
+  const btn = document.activeElement, origText = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 批量注册中...';
+  try {
+    const resp = await fetch(API_BASE + '/api/users/register-batch', { method: 'POST' });
+    const respData = await resp.json();
+    if (resp.ok) {
+      const data = respData.data || respData;
+      toast(data.message + '（新增 ' + data.new_faces_registered + ' 张人脸）', 'success'); loadUserList();
+    } else toast(respData.error || '批量注册失败', 'error');
+  } catch(err) { toast('请求失败', 'error'); }
+  btn.disabled = false; btn.textContent = origText;
+}
+
+function toast(msg, type) {
+  type = type || 'info';
+  const el = document.createElement('div');
+  el.className = 'toast ' + type; el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2500);
+  setTimeout(() => el.remove(), 3000);
+}
+
+window.addEventListener('beforeunload', () => { stopLiveDetection(); closeRegCamera(); });
+
+
+// ═══════════════════════════════════════════
+//  TTS — 语音合成 & 自动播报
+// ═══════════════════════════════════════════
+let ttsAudio = null;               // 当前播放的 Audio 元素
+let lastDetectedPerson = null;     // 最近检测到的匹配人员
+let announceToastTimer = null;     // 播报 Toast 定时器
+
+// ── 自动播放音频（优先 WAV Base64，失败降级为浏览器 SpeechSynthesis）──
+function autoPlayAudio(audioBase64, text) {
+  // 先停止之前正在播放的音频
+  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
+
+  // 显示播报 Toast
+  showAnnouncementToast(text);
+
+  const blob = base64ToBlob(audioBase64, 'audio/wav');
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  ttsAudio = audio;
+
+  // 播放成功
+  audio.onplay = () => {
+    console.log('[TTS] Auto-play started:', text);
+  };
+
+  // 播放结束
+  audio.onended = () => {
+    URL.revokeObjectURL(url);
+    ttsAudio = null;
+  };
+
+  // 播放失败 → 降级为浏览器自带 TTS
+  audio.onerror = () => {
+    URL.revokeObjectURL(url);
+    ttsAudio = null;
+    console.warn('[TTS] Audio play failed, falling back to SpeechSynthesis');
+    ttsSpeakWithBrowser(text);
+  };
+
+  // 尝试播放
+  audio.play().catch(err => {
+    // 浏览器自动播放策略拦截 → 降级
+    console.warn('[TTS] Autoplay blocked (' + err.name + '), falling back to SpeechSynthesis');
+    URL.revokeObjectURL(url);
+    ttsAudio = null;
+    ttsSpeakWithBrowser(text);
+  });
+}
+
+// ── 浏览器自带 TTS 降级方案 ──
+function ttsSpeakWithBrowser(text) {
+  if (typeof speechSynthesis === 'undefined') {
+    console.warn('[TTS] SpeechSynthesis not available');
+    return;
+  }
+
+  // 取消之前未完成的语音
+  speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'zh-CN';
+  utterance.rate = 1.0;
+  utterance.volume = 0.9;
+
+  // 尝试匹配中文语音
+  const voices = speechSynthesis.getVoices();
+  const zhVoice = voices.find(v => v.lang.startsWith('zh')) || voices.find(v => v.lang.startsWith('zh-CN'));
+  if (zhVoice) {
+    utterance.voice = zhVoice;
+  }
+
+  utterance.onstart = () => console.log('[TTS] Browser TTS started:', text);
+  utterance.onerror = (e) => console.warn('[TTS] Browser TTS error:', e.error);
+
+  speechSynthesis.speak(utterance);
+}
+
+// ── 浮动播报 Toast ──
+function showAnnouncementToast(text) {
+  const toast = document.getElementById('announceToast');
+  if (!toast) return;
+
+  // 清除之前的定时器
+  if (announceToastTimer) { clearTimeout(announceToastTimer); }
+
+  // 重置动画
+  toast.classList.remove('fadeout');
+  toast.textContent = '🔊 ' + text;
+  toast.style.display = '';
+
+  // 2 秒后淡出
+  announceToastTimer = setTimeout(() => {
+    toast.classList.add('fadeout');
+    announceToastTimer = setTimeout(() => {
+      toast.style.display = 'none';
+      toast.classList.remove('fadeout');
+    }, 500);
+  }, 2000);
+}
+
+// ── 语速滑块实时更新 ──
+(function initTtsSlider() {
+  const slider = document.getElementById('ttsSpeed');
+  const label = document.getElementById('ttsSpeedVal');
+  if (slider && label) {
+    slider.addEventListener('input', () => {
+      label.textContent = parseFloat(slider.value).toFixed(1) + 'x';
+    });
+  }
+})();
+
+// ── 语音合成并播报 ──
+async function ttsSynthesize() {
+  const text = document.getElementById('ttsText').value.trim();
+  if (!text) { toast('请先输入要播报的文字', 'error'); return; }
+
+  const btn = document.getElementById('ttsSynthesizeBtn');
+  const origHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#0f172a;"></span> 合成中...';
+
+  const statusEl = document.getElementById('ttsAudioStatus');
+  statusEl.textContent = '';
+  statusEl.className = 'tts-audio-status';
+
+  try {
+    const speed = parseFloat(document.getElementById('ttsSpeed').value) || 1.0;
+    const resp = await fetch(API_BASE + '/api/tts/synthesize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, speed: speed })
+    });
+
+    const respData = await resp.json();
+    if (!resp.ok || !respData.ok) {
+      toast('合成失败: ' + (respData.error || '未知错误'), 'error');
+      statusEl.textContent = '合成失败';
+      statusEl.className = 'tts-audio-status';
+      return;
+    }
+
+    const data = respData.data || respData;
+    const audioB64 = data.audio_base64;
+    const duration = data.duration || 0;
+
+    // ── 播放音频 ──
+    if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
+
+    const blob = base64ToBlob(audioB64, 'audio/wav');
+    const url = URL.createObjectURL(blob);
+    ttsAudio = new Audio(url);
+
+    ttsAudio.onplay = () => {
+      statusEl.textContent = '▶ 播报中... (' + duration.toFixed(1) + 's)';
+      statusEl.className = 'tts-audio-status playing';
+    };
+    ttsAudio.onended = () => {
+      statusEl.textContent = '✓ 播报完成';
+      statusEl.className = 'tts-audio-status';
+      URL.revokeObjectURL(url);
+      ttsAudio = null;
+      toast('播报完成', 'success');
+    };
+    ttsAudio.onerror = () => {
+      statusEl.textContent = '播放失败';
+      statusEl.className = 'tts-audio-status';
+      URL.revokeObjectURL(url);
+      ttsAudio = null;
+    };
+
+    await ttsAudio.play();
+
+  } catch (err) {
+    toast('请求失败: ' + err.message, 'error');
+    statusEl.textContent = '请求失败';
+    statusEl.className = 'tts-audio-status';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origHTML;
+  }
+}
+
+// ── 一键问候当前检测到的人员 ──
+function ttsGreetDetected() {
+  const name = document.getElementById('ttsDetectedName').textContent;
+  if (!name || name === '—') {
+    toast('未检测到人员', 'info');
+    return;
+  }
+  const greetText = '你好，' + name + '。欢迎使用人脸识别系统。';
+  document.getElementById('ttsText').value = greetText;
+  ttsSynthesize();
+}
+
+// ── 更新 TTS 上下文关联（检测到匹配时调用）──
+function updateTtsContext(name) {
+  const ctx = document.getElementById('ttsContext');
+  const nameEl = document.getElementById('ttsDetectedName');
+  if (name) {
+    nameEl.textContent = name;
+    ctx.style.display = '';
+    lastDetectedPerson = name;
+  } else {
+    nameEl.textContent = '—';
+    ctx.style.display = 'none';
+    lastDetectedPerson = null;
+  }
+}
+
+// ── Base64 → Blob 工具函数 ──
+function base64ToBlob(b64, mimeType) {
+  const byteChars = atob(b64);
+  const byteArrays = [];
+  for (let offset = 0; offset < byteChars.length; offset += 512) {
+    const slice = byteChars.slice(offset, offset + 512);
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+  return new Blob(byteArrays, { type: mimeType });
+}
+</script>
+
+</body>
+</html>

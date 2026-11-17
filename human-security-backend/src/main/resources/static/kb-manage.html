@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧安防知识库管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                         "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f0fe 0%, #d4e4fc 50%, #e0eaf5 100%);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .container {
+            max-width: 1300px; margin: 0 auto;
+            background: #ffffff; border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0, 82, 155, 0.12);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a73e8, #1557b0);
+            color: #ffffff; padding: 22px 28px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+        .header .nav-links { display: flex; gap: 16px; }
+        .header .nav-links a {
+            color: #ffffff; text-decoration: none; font-size: 13px;
+            padding: 6px 14px; border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 16px; transition: all 0.2s;
+        }
+        .header .nav-links a:hover { background: rgba(255,255,255,0.15); }
+        .header .nav-links a.active { background: rgba(255,255,255,0.2); }
+        .toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 24px; border-bottom: 1px solid #e8edf4;
+            flex-wrap: wrap; gap: 12px;
+        }
+        .search-box { display: flex; gap: 8px; }
+        .search-box input {
+            padding: 8px 14px; border: 1px solid #dce3ee; border-radius: 20px;
+            font-size: 13px; width: 280px; outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-box input:focus { border-color: #1a73e8; }
+        .btn {
+            padding: 8px 18px; border: none; border-radius: 20px;
+            font-size: 13px; cursor: pointer; transition: all 0.2s;
+            white-space: nowrap; font-weight: 500;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background: #1a73e8; color: #ffffff; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-outline {
+            background: #ffffff; color: #1a73e8;
+            border: 1px solid #1a73e8;
+        }
+        .btn-outline:hover { background: #eef3fa; }
+        .btn-danger { background: #ea4335; color: #ffffff; }
+        .btn-danger:hover { background: #d33426; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-success { background: #34a853; color: #ffffff; }
+        .btn-success:hover { background: #2d9249; }
+        .btn-warn { background: #f9ab00; color: #ffffff; }
+        .btn-warn:hover { background: #e09500; }
+        .table-wrap { overflow-x: auto; padding: 0 4px; }
+        table {
+            width: 100%; border-collapse: collapse; font-size: 13px;
+            min-width: 1100px;
+        }
+        thead th {
+            background: #f8fafd; color: #5f6b7a; font-weight: 600;
+            padding: 12px 10px; text-align: left; border-bottom: 2px solid #e8edf4;
+            white-space: nowrap;
+        }
+        tbody td {
+            padding: 10px; border-bottom: 1px solid #eef1f6;
+            vertical-align: top; line-height: 1.5;
+        }
+        tbody tr:hover { background: #f9fbfd; }
+        .col-id { width: 50px; }
+        .col-question { max-width: 200px; }
+        .col-answer { max-width: 280px; }
+        .col-keywords { max-width: 180px; }
+        .col-category { width: 80px; }
+        .col-status { width: 70px; }
+        .col-time { width: 140px; }
+        .col-actions { width: 160px; }
+        .text-ellipsis {
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 10px;
+            font-size: 11px; font-weight: 500;
+        }
+        .badge-on { background: #e6f4ea; color: #137333; }
+        .badge-off { background: #fce8e6; color: #c5221f; }
+        .empty-row td { text-align: center; color: #8f9bb3; padding: 40px; }
+        /* modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4); z-index: 100;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #ffffff; border-radius: 16px; width: 90%; max-width: 620px;
+            max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 50px rgba(0,0,0,0.18);
+            padding: 24px 28px;
+        }
+        .modal h2 {
+            font-size: 18px; font-weight: 600; color: #202124; margin-bottom: 18px;
+        }
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block; font-size: 13px; color: #5f6b7a;
+            font-weight: 500; margin-bottom: 4px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 10px 12px; border: 1px solid #dce3ee;
+            border-radius: 8px; font-size: 13px; font-family: inherit;
+            outline: none; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: #1a73e8;
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+        .toast {
+            position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+            padding: 10px 24px; border-radius: 20px; font-size: 13px; font-weight: 500;
+            z-index: 200; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .toast-success { background: #e6f4ea; color: #137333; }
+        .toast-error { background: #fce8e6; color: #c5221f; }
+        .stats-bar {
+            display: flex; gap: 20px; padding: 10px 24px;
+            font-size: 12px; color: #5f6b7a;
+        }
+        @media (max-width: 768px) {
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .search-box input { width: 100%; }
+            .header { flex-direction: column; gap: 10px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ 智慧安防知识库管理</h1>
+            <div class="nav-links">
+                <a href="index.html">🏠 首页</a>
+                <a href="kb-chat.html">💬 问答助手</a>
+                <a href="kb-manage.html" class="active">📋 知识库管理</a>
+                <a href="alarm-manage.html">🚨 告警管理</a>
+                <a href="chat-history.html">📝 聊天记录</a>
+            </div>
+        </div>
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索问题、关键词、分类..." />
+                <button class="btn btn-primary" onclick="doSearch()">🔍 搜索</button>
+                <button class="btn btn-outline" onclick="clearSearch()">清除</button>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="openAdd()">＋ 新增知识</button>
+            </div>
+        </div>
+        <div class="stats-bar" id="statsBar"></div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-id">ID</th>
+                        <th class="col-question">问题</th>
+                        <th class="col-answer">答案</th>
+                        <th class="col-keywords">关键词</th>
+                        <th class="col-category">分类</th>
+                        <th class="col-status">状态</th>
+                        <th class="col-time">创建时间</th>
+                        <th class="col-actions">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 新增/编辑弹窗 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h2 id="modalTitle">新增知识</h2>
+            <input type="hidden" id="editId" />
+            <div class="form-group">
+                <label>问题 *</label>
+                <input type="text" id="formQuestion" placeholder="例如：系统如何布防？" />
+            </div>
+            <div class="form-group">
+                <label>答案 *</label>
+                <textarea id="formAnswer" rows="4" placeholder="输入回答内容..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>关键词（逗号分隔）</label>
+                <input type="text" id="formKeywords" placeholder="例如：布防,撤防,安防状态" />
+            </div>
+            <div class="form-group">
+                <label>分类</label>
+                <input type="text" id="formCategory" placeholder="例如：布防、告警、设备管理" />
+            </div>
+            <div class="form-group">
+                <label>状态</label>
+                <select id="formEnabled">
+                    <option value="1">启用</option>
+                    <option value="0">停用</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" id="submitBtn" onclick="submitForm()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+    (function() {
+        var API_BASE = "http://localhost:8080/api/kb";
+        var isEditing = false;
+
+        window.doSearch = function() {
+            loadList(document.getElementById("searchInput").value.trim());
+        };
+        window.clearSearch = function() {
+            document.getElementById("searchInput").value = "";
+            loadList("");
+        };
+        window.openAdd = function() {
+            isEditing = false;
+            document.getElementById("modalTitle").textContent = "新增知识";
+            document.getElementById("editId").value = "";
+            document.getElementById("formQuestion").value = "";
+            document.getElementById("formAnswer").value = "";
+            document.getElementById("formKeywords").value = "";
+            document.getElementById("formCategory").value = "";
+            document.getElementById("formEnabled").value = "1";
+            document.getElementById("submitBtn").textContent = "保存";
+            document.getElementById("modalOverlay").classList.add("active");
+        };
+        window.closeModal = function() {
+            document.getElementById("modalOverlay").classList.remove("active");
+        };
+        window.openEdit = function(id) {
+            var rows = document.querySelectorAll("#tableBody tr[data-row]");
+            var row = null;
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].getAttribute("data-row")) {
+                    var d = JSON.parse(rows[i].getAttribute("data-row"));
+                    if (d.id == id) { row = d; break; }
+                }
+            }
+            if (!row) return;
+            isEditing = true;
+            document.getElementById("modalTitle").textContent = "编辑知识 #" + id;
+            document.getElementById("editId").value = id;
+            document.getElementById("formQuestion").value = row.question || "";
+            document.getElementById("formAnswer").value = row.answer || "";
+            document.getElementById("formKeywords").value = row.keywords || "";
+            document.getElementById("formCategory").value = row.category || "";
+            document.getElementById("formEnabled").value = (row.enabled != null ? row.enabled : 1);
+            document.getElementById("submitBtn").textContent = "更新";
+            document.getElementById("modalOverlay").classList.add("active");
+        };
+        window.submitForm = function() {
+            var id = document.getElementById("editId").value;
+            var question = document.getElementById("formQuestion").value.trim();
+            var answer = document.getElementById("formAnswer").value.trim();
+            var keywords = document.getElementById("formKeywords").value.trim();
+            var category = document.getElementById("formCategory").value.trim();
+            var enabled = parseInt(document.getElementById("formEnabled").value);
+
+            if (!question) { showToast("问题不能为空", false); return; }
+            if (!answer) { showToast("答案不能为空", false); return; }
+
+            var body = {
+                question: question,
+                answer: answer,
+                keywords: keywords,
+                category: category,
+                enabled: enabled
+            };
+
+            var url, method;
+            if (isEditing) {
+                body.id = parseInt(id);
+                url = API_BASE + "/update";
+                method = "PUT";
+            } else {
+                url = API_BASE + "/add";
+                method = "POST";
+            }
+
+            fetch(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast(data.message, true);
+                    closeModal();
+                    loadList(document.getElementById("searchInput").value.trim());
+                } else {
+                    showToast(data.message || "操作失败", false);
+                }
+            })
+            .catch(function(e) {
+                showToast("网络错误: " + e.message, false);
+            });
+        };
+        window.deleteKnowledge = function(id) {
+            if (!confirm("确定要删除知识 #" + id + " 吗？此操作不可恢复。")) return;
+            fetch(API_BASE + "/delete/" + id, { method: "DELETE" })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                showToast(data.message, data.success);
+                if (data.success) loadList(document.getElementById("searchInput").value.trim());
+            })
+            .catch(function(e) { showToast("网络错误: " + e.message, false); });
+        };
+        window.toggleKnowledge = function(id) {
+            fetch(API_BASE + "/toggle/" + id, { method: "POST" })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                showToast(data.message, data.success);
+                if (data.success) loadList(document.getElementById("searchInput").value.trim());
+            })
+            .catch(function(e) { showToast("网络错误: " + e.message, false); });
+        };
+        function loadList(keyword) {
+            var url = API_BASE + "/list";
+            if (keyword) url += "?keyword=" + encodeURIComponent(keyword);
+
+            fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                renderTable(data);
+            })
+            .catch(function(e) {
+                showToast("加载失败: " + e.message, false);
+                document.getElementById("tableBody").innerHTML =
+                    '<tr class="empty-row"><td colspan="8">加载失败：' + e.message + '</td></tr>';
+            });
+        }
+        function renderTable(list) {
+            var tbody = document.getElementById("tableBody");
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="8">暂无知识条目，点击「新增知识」添加</td></tr>';
+                document.getElementById("statsBar").textContent = "共 0 条";
+                return;
+            }
+            var html = "";
+            for (var i = 0; i < list.length; i++) {
+                var k = list[i];
+                var statusHtml = k.enabled == 1
+                    ? '<span class="badge badge-on">启用</span>'
+                    : '<span class="badge badge-off">停用</span>';
+                var toggleLabel = k.enabled == 1 ? "停用" : "启用";
+                var toggleClass  = k.enabled == 1 ? "btn-warn" : "btn-success";
+
+                html += '<tr data-row=\'' + JSON.stringify(k).replace(/'/g, "&#39;") + '\'>';
+                html += '<td>' + k.id + '</td>';
+                html += '<td><div class="text-ellipsis">' + esc(k.question) + '</div></td>';
+                html += '<td><div class="text-ellipsis" style="white-space:pre-wrap">' + esc(k.answer) + '</div></td>';
+                html += '<td><div class="text-ellipsis">' + esc(k.keywords || "") + '</div></td>';
+                html += '<td>' + esc(k.category || "") + '</td>';
+                html += '<td>' + statusHtml + '</td>';
+                html += '<td>' + esc(k.createdAt || "") + '</td>';
+                html += '<td class="col-actions">'
+                    + '<button class="btn btn-outline btn-sm" onclick="openEdit(' + k.id + ')" style="margin-right:4px;">编辑</button>'
+                    + '<button class="btn ' + toggleClass + ' btn-sm" onclick="toggleKnowledge(' + k.id + ')" style="margin-right:4px;">' + toggleLabel + '</button>'
+                    + '<button class="btn btn-danger btn-sm" onclick="deleteKnowledge(' + k.id + ')">删除</button>'
+                    + '</td>';
+                html += '</tr>';
+            }
+            tbody.innerHTML = html;
+            var onCount = 0, offCount = 0;
+            for (var j = 0; j < list.length; j++) {
+                if (list[j].enabled == 1) onCount++; else offCount++;
+            }
+            document.getElementById("statsBar").textContent =
+                "共 " + list.length + " 条（启用 " + onCount + "，停用 " + offCount + "）";
+        }
+        function esc(text) {
+            if (!text) return "";
+            var div = document.createElement("div");
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+        function showToast(msg, success) {
+            var el = document.getElementById("toast");
+            el.textContent = msg;
+            el.className = "toast " + (success ? "toast-success" : "toast-error") + " show";
+            setTimeout(function() { el.className = "toast"; }, 2500);
+        }
+        // 点击遮罩关闭
+        document.getElementById("modalOverlay").addEventListener("click", function(e) {
+            if (e.target === this) closeModal();
+        });
+        // 回车搜索
+        document.getElementById("searchInput").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") doSearch();
+        });
+        // 初始加载
+        loadList("");
+    })();
+    </script>
+</body>
+</html>

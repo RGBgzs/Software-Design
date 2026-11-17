@@ -1,0 +1,685 @@
+package com.example.security.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.example.security.dto.ActionDraft;
+import com.example.security.dto.AiAgentResponse;
+import com.example.security.entity.AlarmRecord;
+import com.example.security.entity.DeviceStatus;
+import com.example.security.entity.Knowledge;
+import com.example.security.mapper.ChatRecordMapper;
+import com.example.security.mapper.KnowledgeMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+
+@Service
+public class AiAgentService {
+
+    @Autowired
+    private DeviceStatusService deviceStatusService;
+
+    @Autowired
+    private AlarmRecordService alarmRecordService;
+
+    @Autowired
+    private KnowledgeMapper knowledgeMapper;
+
+    @Autowired
+    private ChatRecordMapper chatRecordMapper;
+
+    // ==================== 主入口 ====================
+
+    public AiAgentResponse chat(Long userId, String message) {
+        if (message == null || message.trim().isEmpty()) {
+            return buildEmptyResponse();
+        }
+
+        // 1. 意图识别
+        String intent = recognizeIntent(message);
+
+        // 2. 尝试 LLM（预留）
+        AiAgentResponse llmResult = tryLLM(userId, message, intent);
+        if (llmResult != null) return llmResult;
+
+        // 3. 规则智能体
+        AiAgentResponse result = ruleAgent(userId, message, intent);
+
+        // 4. 保存聊天记录
+        saveRecord(userId, message, result.getAnswer(), intent);
+
+        return result;
+    }
+
+    // ==================== 意图识别 ====================
+
+    private String recognizeIntent(String message) {
+        String msg = message.trim();
+
+        // 安全状态判断（最高优先级）
+        if (containsAny(msg, "安全吗", "安不安全", "有没有危险", "家里安全", "是否安全",
+                "现在安全", "当前安全", "安全状态", "目前安全", "安全情况", "怎么不安全")) {
+            return "SECURITY_STATUS";
+        }
+
+        // 设备查询
+        if (containsAny(msg, "设备是否在线", "在线吗", "在线状态", "是否在线", "离线吗",
+                "是否离线", "电量", "是否布防", "布防状态", "是否布防", "布防吗",
+                "传感器电量", "传感器状态", "怎么离线", "设备状态", "当前设备",
+                "查看设备")) {
+            return "DEVICE_QUERY";
+        }
+
+        // 告警查询
+        if (containsAny(msg, "有没有告警", "最近告警", "最新告警", "有告警吗",
+                "查看告警", "告警信息", "告警列表", "告警记录",
+                "有没有入侵", "有人闯入", "是否有陌生人", "陌生人告警",
+                "当前告警", "未处理告警")) {
+            return "ALARM_QUERY";
+        }
+
+        // 求助建议
+        if (containsAny(msg, "怎么办", "怎么处理", "如何应对", "怎么解决",
+                "通知保安", "帮我生成", "生成一条", "生成求助",
+                "求助", "帮我通知", "告诉保安", "发送消息")) {
+            return "HELP_ADVICE";
+        }
+
+        // 告警的弱匹配（含"告警"、"报警"、"异常"等关键词）
+        if (containsAny(msg, "告警", "报警", "异常", "入侵", "陌生人", "闯入", "未处理")) {
+            return "ALARM_QUERY";
+        }
+
+        // 设备的弱匹配
+        if (containsAny(msg, "设备", "在线", "离线", "布防", "撤防", "传感器", "摄像头", "门磁")) {
+            return "DEVICE_QUERY";
+        }
+
+        // 知识库
+        if (containsAny(msg, "如何", "怎么", "什么是", "说明", "解释", "什么意思",
+                "布防", "短信", "MQTT", "物联网", "安防")) {
+            return "KNOWLEDGE_QA";
+        }
+
+        return "UNKNOWN";
+    }
+
+    private boolean containsAny(String msg, String... keywords) {
+        for (String kw : keywords) {
+            if (msg.contains(kw)) return true;
+        }
+        return false;
+    }
+
+    // ==================== 规则智能体核心 ====================
+
+    private AiAgentResponse ruleAgent(Long userId, String message, String intent) {
+        switch (intent) {
+            case "SECURITY_STATUS": return handleSecurityStatus(message);
+            case "DEVICE_QUERY":    return handleDeviceQuery(message);
+            case "ALARM_QUERY":     return handleAlarmQuery(message);
+            case "HELP_ADVICE":     return handleHelpAdvice(message);
+            case "KNOWLEDGE_QA":    return handleKnowledgeQa(message);
+            default:                return handleUnknown(message);
+        }
+    }
+
+    // ==================== 安全状态 ====================
+
+    private AiAgentResponse handleSecurityStatus(String message) {
+        AiAgentResponse r = new AiAgentResponse();
+        r.setIntent("SECURITY_STATUS");
+        r.setSource("RULE");
+        r.setUsedTools(Arrays.asList("device_status", "alarm_record"));
+
+        List<DeviceStatus> devices = deviceStatusService.getAll();
+        List<AlarmRecord> allAlarms = alarmRecordService.list(null, null);
+
+        // 分析
+        List<AlarmRecord> unhandled = new ArrayList<>();
+        List<AlarmRecord> highAlarms = new ArrayList<>();
+        for (AlarmRecord a : allAlarms) {
+            if (a.getHandleStatus() == null || a.getHandleStatus() == 0) {
+                unhandled.add(a);
+                if ("HIGH".equalsIgnoreCase(a.getAlarmLevel())) highAlarms.add(a);
+            }
+        }
+
+        List<DeviceStatus> offlineDevices = new ArrayList<>();
+        List<DeviceStatus> lowBatteryDevices = new ArrayList<>();
+        int onlineCount = 0, defenseCount = 0;
+        for (DeviceStatus d : devices) {
+            if (d.getOnline() != null && d.getOnline() == 1) onlineCount++;
+            else offlineDevices.add(d);
+            if (d.getDefense() != null && d.getDefense() == 1) defenseCount++;
+            if (d.getBattery() != null && d.getBattery() < 20) lowBatteryDevices.add(d);
+        }
+
+        List<String> evidence = new ArrayList<>();
+        List<String> suggestions = new ArrayList<>();
+        StringBuilder answer = new StringBuilder();
+
+        // 判断风险等级
+        if (!highAlarms.isEmpty() && !offlineDevices.isEmpty()) {
+            r.setRiskLevel("CRITICAL");
+            answer.append("⚠️ 当前安防状态：**严重风险**，不建议认为安全。\n\n");
+            answer.append("检测到 ").append(highAlarms.size()).append(" 条高危未处理告警，同时有 ")
+                  .append(offlineDevices.size()).append(" 台设备离线。高危告警叠加监控盲区，安防形势严峻。\n");
+        } else if (!highAlarms.isEmpty()) {
+            r.setRiskLevel("HIGH");
+            answer.append("⚠️ 当前安防状态：**高风险**，需要立即关注。\n\n");
+            answer.append("检测到 ").append(highAlarms.size()).append(" 条高危未处理告警。\n");
+        } else if (!unhandled.isEmpty()) {
+            r.setRiskLevel("MEDIUM");
+            answer.append("⚠️ 当前安防状态：**中等风险**，存在未处理告警。\n\n");
+            answer.append("检测到 ").append(unhandled.size()).append(" 条未处理告警。\n");
+        } else if (!offlineDevices.isEmpty()) {
+            r.setRiskLevel("MEDIUM");
+            answer.append("⚠️ 当前安防状态：**中等风险**，存在离线设备。\n\n");
+            answer.append("检测到 ").append(offlineDevices.size()).append(" 台设备离线，存在监控盲区。\n");
+        } else if (!lowBatteryDevices.isEmpty()) {
+            r.setRiskLevel("MEDIUM");
+            answer.append("⚠️ 当前安防状态：**中等风险**，存在低电量设备。\n\n");
+        } else {
+            r.setRiskLevel("LOW");
+            answer.append("✅ 当前安防状态：**安全**，系统运行正常。\n\n");
+            answer.append(devices.size()).append(" 台设备中 ").append(onlineCount).append(" 台在线，")
+                  .append(defenseCount).append(" 台已布防，无未处理告警。\n");
+        }
+
+        // 证据
+        for (AlarmRecord a : highAlarms) {
+            String time = a.getAlarmTime() != null ? a.getAlarmTime().toString().replace("T", " ") : "未知";
+            evidence.add(a.getDeviceName() + "：" + a.getAlarmContent() + "（" + a.getAlarmLevelName() + "，" + time + "）");
+        }
+        for (DeviceStatus d : offlineDevices) {
+            evidence.add(d.getDeviceName() + "（" + d.getLocation() + "）当前离线");
+        }
+        for (DeviceStatus d : lowBatteryDevices) {
+            evidence.add(d.getDeviceName() + "（" + d.getLocation() + "）电量为 " + d.getBattery() + "%");
+        }
+        if (evidence.isEmpty()) {
+            evidence.add("所有设备正常运行，无异常告警");
+        }
+
+        // 建议
+        if (!highAlarms.isEmpty() || !unhandled.isEmpty()) {
+            suggestions.add("立即查看告警详情，确认现场情况");
+            suggestions.add("生成求助信息并通知保安或紧急联系人");
+        }
+        if (!offlineDevices.isEmpty()) {
+            suggestions.add("检查离线设备电源和网络连接");
+            suggestions.add("确认设备最后上报时间，排查 MQTT 服务状态");
+        }
+        if (!lowBatteryDevices.isEmpty()) {
+            suggestions.add("尽快为低电量设备更换电池或充电");
+        }
+        if (r.getRiskLevel().equals("LOW")) {
+            suggestions.add("继续保持设备在线和布防策略");
+            suggestions.add("定期检查设备电量和网络状态");
+        }
+
+        // 草稿
+        if (!r.getRiskLevel().equals("LOW")) {
+            String draftContent = buildHelpDraftContent(devices, unhandled, highAlarms, offlineDevices);
+            r.setActionDraft(new ActionDraft("HELP_MESSAGE",
+                    "智慧安防安全提醒 - 当前存在安全风险",
+                    draftContent));
+        }
+
+        r.setAnswer(answer.toString().trim());
+        r.setEvidence(evidence);
+        r.setSuggestions(suggestions);
+        return r;
+    }
+
+    // ==================== 设备查询 ====================
+
+    private AiAgentResponse handleDeviceQuery(String message) {
+        AiAgentResponse r = new AiAgentResponse();
+        r.setIntent("DEVICE_QUERY");
+        r.setSource("RULE");
+        r.setUsedTools(Collections.singletonList("device_status"));
+
+        List<DeviceStatus> devices = deviceStatusService.getAll();
+        List<String> evidence = new ArrayList<>();
+        List<String> suggestions = new ArrayList<>();
+        StringBuilder answer = new StringBuilder();
+        answer.append("📡 当前设备状态如下：\n\n");
+
+        int onlineCount = 0, defenseCount = 0;
+        boolean hasOffline = false, hasLowBattery = false;
+
+        for (int i = 0; i < devices.size(); i++) {
+            DeviceStatus d = devices.get(i);
+            String onlineText = (d.getOnline() != null && d.getOnline() == 1) ? "✅ 在线" : "❌ 离线";
+            String defenseText = (d.getDefense() != null && d.getDefense() == 1) ? "已布防" : "已撤防";
+            String batteryText = d.getBattery() != null ? d.getBattery() + "%" : "N/A";
+
+            answer.append(i + 1).append(". ").append(d.getDeviceName())
+                  .append("（").append(d.getLocation()).append("）\n")
+                  .append("   状态：").append(onlineText)
+                  .append(" | 电量：").append(batteryText)
+                  .append(" | ").append(defenseText).append("\n");
+
+            if (d.getOnline() != null && d.getOnline() == 1) onlineCount++;
+            else { hasOffline = true; evidence.add(d.getDeviceName() + "（" + d.getLocation() + "）当前离线"); }
+            if (d.getDefense() != null && d.getDefense() == 1) defenseCount++;
+            if (d.getBattery() != null && d.getBattery() < 20) {
+                hasLowBattery = true;
+                evidence.add(d.getDeviceName() + "（" + d.getLocation() + "）电量仅 " + d.getBattery() + "%");
+            }
+        }
+
+        // 综合判断
+        answer.append("\n📊 汇总：").append(onlineCount).append("/").append(devices.size())
+              .append(" 台在线，").append(defenseCount).append(" 台已布防。");
+
+        if (hasOffline) {
+            r.setRiskLevel("MEDIUM");
+            answer.append("\n⚠️ 存在离线设备，有监控盲区！");
+            suggestions.add("检查离线设备的电源和网络连接");
+            suggestions.add("确认 MQTT 服务是否正常运行");
+        }
+        if (hasLowBattery) {
+            if (r.getRiskLevel() == null) r.setRiskLevel("MEDIUM");
+            answer.append("\n⚠️ 存在低电量设备，可能随时断电！");
+            suggestions.add("尽快为低电量设备更换电池或充电");
+        }
+        if (!hasOffline && !hasLowBattery) {
+            r.setRiskLevel("LOW");
+            answer.append("\n✅ 所有设备运行正常。");
+            suggestions.add("继续保持当前设备运行状态");
+        }
+
+        r.setAnswer(answer.toString().trim());
+        r.setEvidence(evidence.isEmpty() ? Collections.singletonList("所有设备状态正常") : evidence);
+        r.setSuggestions(suggestions);
+        return r;
+    }
+
+    // ==================== 告警查询 ====================
+
+    private AiAgentResponse handleAlarmQuery(String message) {
+        AiAgentResponse r = new AiAgentResponse();
+        r.setIntent("ALARM_QUERY");
+        r.setSource("RULE");
+        r.setUsedTools(Arrays.asList("alarm_record", "device_status"));
+
+        List<AlarmRecord> unhandled = alarmRecordService.getUnhandled();
+        List<AlarmRecord> allAlarms = alarmRecordService.list(null, null);
+        List<String> evidence = new ArrayList<>();
+        List<String> suggestions = new ArrayList<>();
+        StringBuilder answer = new StringBuilder();
+
+        int unhandledCount = unhandled.size();
+        long highCount = unhandled.stream().filter(a -> "HIGH".equalsIgnoreCase(a.getAlarmLevel())).count();
+
+        if (unhandled.isEmpty()) {
+            r.setRiskLevel("LOW");
+            answer.append("✅ 当前暂无未处理告警，系统处于正常监测状态。\n");
+            if (!allAlarms.isEmpty()) {
+                answer.append("最近共有 ").append(allAlarms.size()).append(" 条告警记录，均已处理。\n");
+            }
+        } else if (highCount > 0) {
+            r.setRiskLevel("HIGH");
+            answer.append("🚨 当前存在 **").append(unhandledCount).append("** 条未处理告警，其中 **")
+                  .append(highCount).append("** 条为高危告警，需要立即关注！\n\n");
+        } else {
+            r.setRiskLevel("MEDIUM");
+            answer.append("⚠️ 当前存在 **").append(unhandledCount).append("** 条未处理告警，请及时查看处理。\n\n");
+        }
+
+        if (!unhandled.isEmpty()) {
+            answer.append("未处理告警列表：\n");
+            for (int i = 0; i < Math.min(5, unhandled.size()); i++) {
+                AlarmRecord a = unhandled.get(i);
+                String time = a.getAlarmTime() != null ? a.getAlarmTime().toString().replace("T", " ") : "未知";
+                String levelEmoji = "HIGH".equalsIgnoreCase(a.getAlarmLevel()) ? "🔴" :
+                                    "MEDIUM".equalsIgnoreCase(a.getAlarmLevel()) ? "🟠" : "🟡";
+                answer.append(levelEmoji).append(" ").append(i + 1).append(". ")
+                      .append(a.getDeviceName()).append("：").append(a.getAlarmContent())
+                      .append("（").append(a.getAlarmLevelName()).append("，" ).append(time).append("）\n");
+
+                evidence.add(a.getDeviceName() + "检测到" + a.getAlarmContent() + "（" + a.getAlarmLevelName() + "，未处理）");
+            }
+            if (unhandled.size() > 5) {
+                answer.append("... 还有 ").append(unhandled.size() - 5).append(" 条未处理告警\n");
+            }
+        }
+
+        suggestions.add("查看告警详情，确认现场情况");
+        suggestions.add("如确认为真实告警，请及时处理");
+        if (highCount > 0) {
+            suggestions.add("生成求助信息并通知相关人员");
+            r.setActionDraft(new ActionDraft("HELP_MESSAGE",
+                    "智慧安防高危告警提醒",
+                    buildAlarmDraftContent(unhandled)));
+        }
+        suggestions.add("如确认为误报，可标记为误报");
+
+        r.setAnswer(answer.toString().trim());
+        r.setEvidence(evidence.isEmpty() ? Collections.singletonList("暂无未处理告警") : evidence);
+        r.setSuggestions(suggestions);
+        return r;
+    }
+
+    // ==================== 求助建议 ====================
+
+    private AiAgentResponse handleHelpAdvice(String message) {
+        AiAgentResponse r = new AiAgentResponse();
+        r.setIntent("HELP_ADVICE");
+        r.setSource("RULE");
+        r.setUsedTools(Arrays.asList("kb_knowledge", "alarm_record", "device_status"));
+
+        List<String> evidence = new ArrayList<>();
+        List<String> suggestions = new ArrayList<>();
+        StringBuilder answer = new StringBuilder();
+
+        // 查询知识库
+        String kbAnswer = matchKnowledge(message);
+        // 查询当前告警
+        List<AlarmRecord> unhandled = alarmRecordService.getUnhandled();
+        List<DeviceStatus> devices = deviceStatusService.getAll();
+
+        // 如果问的是"生成消息"/"通知保安"
+        if (message.contains("生成") || message.contains("通知保安") || message.contains("发送消息")
+                || message.contains("告诉保安") || message.contains("帮我通知")) {
+            answer.append("📝 已为你生成消息草稿：\n\n");
+
+            String draftTitle, draftType;
+            if (message.contains("保安")) {
+                draftTitle = "智慧安防通知 - 请保安协助查看";
+                draftType = "ALARM_MESSAGE";
+            } else {
+                draftTitle = "智慧安防求助提醒";
+                draftType = "HELP_MESSAGE";
+            }
+
+            StringBuilder draftContent = new StringBuilder();
+            draftContent.append("【智慧安防系统提醒】\n\n");
+
+            if (!unhandled.isEmpty()) {
+                draftContent.append("当前存在未处理告警：\n");
+                for (int i = 0; i < Math.min(3, unhandled.size()); i++) {
+                    AlarmRecord a = unhandled.get(i);
+                    draftContent.append("• ").append(a.getDeviceName()).append("：")
+                               .append(a.getAlarmContent()).append("\n");
+                }
+            }
+
+            // 离线设备
+            long offlineCount = devices.stream().filter(d -> d.getOnline() != null && d.getOnline() == 0).count();
+            if (offlineCount > 0) {
+                draftContent.append("\n离线设备：\n");
+                devices.stream().filter(d -> d.getOnline() != null && d.getOnline() == 0)
+                       .forEach(d -> draftContent.append("• ").append(d.getDeviceName())
+                               .append("（").append(d.getLocation()).append("）\n"));
+            }
+
+            draftContent.append("\n请尽快确认现场情况。如有异常，请及时联系相关人员处理。");
+            draftContent.append("\n\n—— 智慧安防系统");
+
+            answer.append("标题：").append(draftTitle).append("\n");
+            answer.append("内容：\n").append(draftContent.toString());
+
+            r.setActionDraft(new ActionDraft(draftType, draftTitle, draftContent.toString()));
+            r.setRiskLevel(unhandled.isEmpty() ? "LOW" : "MEDIUM");
+        } else {
+            // 一般求助建议：知识库 + 当前状态
+            if (kbAnswer != null && !kbAnswer.isEmpty()) {
+                answer.append("📋 知识库建议：\n").append(kbAnswer).append("\n\n");
+                evidence.add("知识库匹配到相关建议");
+            }
+
+            // 附加当前状态
+            if (!unhandled.isEmpty()) {
+                r.setRiskLevel("MEDIUM");
+                answer.append("⚠️ 当前存在未处理告警，请注意：\n");
+                for (int i = 0; i < Math.min(3, unhandled.size()); i++) {
+                    AlarmRecord a = unhandled.get(i);
+                    answer.append("• ").append(a.getDeviceName()).append("：")
+                          .append(a.getAlarmContent()).append("\n");
+                    evidence.add("当前告警：" + a.getDeviceName() + " - " + a.getAlarmContent());
+                }
+            } else {
+                r.setRiskLevel("LOW");
+                answer.append("✅ 当前暂无未处理告警。\n");
+            }
+        }
+
+        suggestions.add("查看告警详情，确认现场情况");
+        suggestions.add("通过紧急求助页面生成并发送求助信息");
+        suggestions.add("通过消息中心通知其他用户");
+        suggestions.add("如确认为紧急情况，请直接联系小区保安");
+
+        r.setAnswer(answer.toString().trim());
+        r.setEvidence(evidence.isEmpty() ? Collections.singletonList("根据知识库和当前安防状态综合判断") : evidence);
+        r.setSuggestions(suggestions);
+        return r;
+    }
+
+    // ==================== 知识库问答 ====================
+
+    private AiAgentResponse handleKnowledgeQa(String message) {
+        AiAgentResponse r = new AiAgentResponse();
+        r.setIntent("KNOWLEDGE_QA");
+        r.setSource("RULE");
+        r.setUsedTools(Collections.singletonList("kb_knowledge"));
+        r.setRiskLevel("LOW");
+
+        String kbAnswer = matchKnowledge(message);
+        r.setEvidence(Collections.singletonList("基于知识库条目匹配"));
+
+        if (kbAnswer != null && !kbAnswer.isEmpty()) {
+            r.setAnswer(kbAnswer);
+            r.setSuggestions(Collections.singletonList("如需更多信息，可以换一种方式提问"));
+        } else {
+            r.setAnswer("抱歉，知识库中暂时没有找到关于「" + message + "」的相关信息。\n\n"
+                    + "你可以尝试：\n"
+                    + "• 系统如何布防？\n"
+                    + "• 发现陌生人怎么办？\n"
+                    + "• 短信通知什么时候发送？\n"
+                    + "• 设备离线怎么办？\n"
+                    + "• 人体传感器有什么作用？\n"
+                    + "• 当前设备是否在线？\n"
+                    + "• 最近有没有告警？\n"
+                    + "• 我现在家里安全吗？");
+            r.setSuggestions(Arrays.asList("尝试换一种表述方式提问", "查看知识库管理页面获取完整知识列表"));
+        }
+
+        return r;
+    }
+
+    // ==================== 未知意图 ====================
+
+    private AiAgentResponse handleUnknown(String message) {
+        // 先尝试知识库匹配
+        String kbAnswer = matchKnowledge(message);
+        if (kbAnswer != null && !kbAnswer.isEmpty()) {
+            AiAgentResponse r = new AiAgentResponse();
+            r.setIntent("KNOWLEDGE_QA");
+            r.setSource("RULE");
+            r.setRiskLevel("LOW");
+            r.setUsedTools(Collections.singletonList("kb_knowledge"));
+            r.setAnswer(kbAnswer);
+            r.setEvidence(Collections.singletonList("基于知识库条目匹配"));
+            r.setSuggestions(Collections.singletonList("如需更详细的安防分析，可以问「我现在家里安全吗？」"));
+            return r;
+        }
+
+        // 通用兜底
+        AiAgentResponse r = new AiAgentResponse();
+        r.setIntent("UNKNOWN");
+        r.setSource("RULE");
+        r.setRiskLevel("LOW");
+        r.setUsedTools(Collections.singletonList("kb_knowledge"));
+        r.setAnswer("你好！我是智慧安防 AI 智能体助手。\n\n"
+                + "我可以帮你：\n"
+                + "判断当前安防状态（「我现在家里安全吗？」）\n"
+                + "查询设备状态（「当前设备是否在线？」）\n"
+                + "查询告警信息（「最近有没有告警？」）\n"
+                + "获取处理建议（「发现陌生人怎么办？」）\n"
+                + "咨询安防知识（「系统如何布防？」）\n"
+                + "生成消息草稿（「帮我生成一条通知保安的消息」）\n\n"
+                + "请告诉我你想了解什么？");
+        r.setEvidence(Collections.singletonList("无法精确识别意图，返回通用引导"));
+        r.setSuggestions(Arrays.asList(
+                "试试问「我现在家里安全吗？」",
+                "试试问「当前设备是否在线？」",
+                "试试问「最近有没有告警？」",
+                "试试问「发现陌生人怎么办？」"
+        ));
+        return r;
+    }
+
+    // ==================== 工具方法 ====================
+
+    /**
+     * 知识库关键词匹配
+     */
+    private String matchKnowledge(String query) {
+        QueryWrapper<Knowledge> wrapper = new QueryWrapper<>();
+        wrapper.eq("enabled", 1);
+        List<Knowledge> allKnowledge = knowledgeMapper.selectList(wrapper);
+
+        Knowledge bestMatch = null;
+        int bestScore = -1;
+
+        for (Knowledge k : allKnowledge) {
+            int score = matchScore(query, (k.getKeywords() != null ? k.getKeywords() : "") + " " + k.getQuestion());
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatch = k;
+            }
+        }
+
+        return (bestMatch != null && bestScore > 0) ? bestMatch.getAnswer() : null;
+    }
+
+    private int matchScore(String query, String pattern) {
+        int score = 0;
+        query = query.toLowerCase();
+        pattern = pattern.toLowerCase();
+
+        String[] words = pattern.split("[\\s,，、。；;]+");
+        for (String word : words) {
+            if (word.length() >= 2 && query.contains(word)) {
+                score += 10;
+            }
+        }
+
+        if (query.contains(pattern)) score += 20;
+        if (pattern.contains(query)) score += 15;
+
+        return score;
+    }
+
+    /**
+     * 生成求助草稿内容
+     */
+    private String buildHelpDraftContent(List<DeviceStatus> devices,
+                                          List<AlarmRecord> unhandled,
+                                          List<AlarmRecord> highAlarms,
+                                          List<DeviceStatus> offlineDevices) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("【智慧安防系统自动提醒】\n\n");
+
+        if (!highAlarms.isEmpty()) {
+            sb.append("🔴 高危告警（").append(highAlarms.size()).append("条）：\n");
+            for (AlarmRecord a : highAlarms) {
+                sb.append("• ").append(a.getDeviceName()).append("：")
+                  .append(a.getAlarmContent()).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        if (!unhandled.isEmpty()) {
+            sb.append("未处理告警共 ").append(unhandled.size()).append(" 条\n\n");
+        }
+
+        if (!offlineDevices.isEmpty()) {
+            sb.append("离线设备：\n");
+            for (DeviceStatus d : offlineDevices) {
+                sb.append("• ").append(d.getDeviceName())
+                  .append("（").append(d.getLocation()).append("）\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("建议操作：\n");
+        sb.append("1. 立即查看告警详情，确认现场情况\n");
+        sb.append("2. 检查离线设备电源和网络\n");
+        sb.append("3. 如确认为紧急情况，请联系相关人员\n");
+
+        sb.append("\n—— 智慧安防系统");
+        return sb.toString();
+    }
+
+    /**
+     * 生成告警消息草稿
+     */
+    private String buildAlarmDraftContent(List<AlarmRecord> unhandled) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("【智慧安防告警提醒】\n\n");
+        sb.append("当前存在 ").append(unhandled.size()).append(" 条未处理告警：\n\n");
+
+        for (int i = 0; i < Math.min(5, unhandled.size()); i++) {
+            AlarmRecord a = unhandled.get(i);
+            String time = a.getAlarmTime() != null ? a.getAlarmTime().toString().replace("T", " ") : "未知";
+            sb.append(i + 1).append(". ").append(a.getDeviceName())
+              .append(" - ").append(a.getAlarmContent())
+              .append("\n   等级：").append(a.getAlarmLevelName())
+              .append("，时间：").append(time).append("\n");
+        }
+
+        sb.append("\n请及时查看并处理告警。");
+        sb.append("\n\n—— 智慧安防系统");
+        return sb.toString();
+    }
+
+    /**
+     * 保存聊天记录
+     */
+    private void saveRecord(Long userId, String message, String answer, String category) {
+        try {
+            chatRecordMapper.insertRecord(userId, message, answer, null, category);
+        } catch (Exception e) {
+            System.err.println("[AiAgentService] 聊天记录保存失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 空消息响应
+     */
+    private AiAgentResponse buildEmptyResponse() {
+        AiAgentResponse r = new AiAgentResponse();
+        r.setIntent("UNKNOWN");
+        r.setSource("RULE");
+        r.setRiskLevel("LOW");
+        r.setAnswer("请输入你的问题。");
+        r.setUsedTools(Collections.emptyList());
+        r.setEvidence(Collections.emptyList());
+        r.setSuggestions(Collections.singletonList("请输入你的安防相关问题"));
+        return r;
+    }
+
+    // ==================== LLM 预留 ====================
+
+    /**
+     * 尝试调用大模型——当前预留，返回 null 则走规则兜底
+     */
+    private AiAgentResponse tryLLM(Long userId, String message, String intent) {
+        String apiKey = System.getenv("AI_API_KEY");
+        String apiUrl = System.getenv("AI_API_URL");
+        String model = System.getenv("AI_MODEL");
+
+        if (apiKey == null || apiKey.isEmpty() || apiUrl == null || apiUrl.isEmpty()) {
+            return null; // 无 LLM 配置，走规则
+        }
+
+        // 预留：构建 prompt，调用 LLM API，解析返回
+        // 当前版本先返回 null，一律走规则兜底
+        return null;
+    }
+}

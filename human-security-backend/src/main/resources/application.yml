@@ -1,0 +1,57 @@
+server:
+  port: 8080
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/dream25?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&autoReconnect=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 60000
+      max-lifetime: 180000
+      keepalive-time: 30000
+      connection-timeout: 10000
+      validation-timeout: 3000
+      connection-test-query: SELECT 1
+
+mqtt:
+  host: ${MQTT_HOST:tcp://127.0.0.1:1883}
+  client-id: springboot-human-security
+  username: ${MQTT_USERNAME}
+  password: ${MQTT_PASSWORD}
+  # 设备上报 Topic（订阅）
+  subscribe-topic: a
+  # 后端下发命令 Topic（发布）
+  command-topic: b
+  # QoS 等级
+  qos: 2
+  # 离线检测间隔（秒）
+  offline-check-interval: 10
+  # 离线阈值（秒）
+  offline-threshold: 30
+
+# 华为云 IoTDA 同步转发（可选扩展）
+huawei:
+  iotda:
+    enabled: false
+    host: tcp://76f3a0abd9.st1.iotda-device.cn-north-4.myhuaweicloud.com:1883
+    client-id: ${HUAWEI_IOTDA_CLIENT_ID:}
+    username: ${HUAWEI_IOTDA_USERNAME:}
+    password: ${HUAWEI_IOTDA_PASSWORD:}
+    device-id: ${HUAWEI_IOTDA_DEVICE_ID:}
+
+# 人脸识别微服务配置
+face:
+  service:
+    enabled: true
+    base-url: http://127.0.0.1:5000
+    threshold: 0.4
+    connect-timeout: 3000
+    read-timeout: 15000
